@@ -37,7 +37,7 @@ const movieSchema = new mongoose.Schema(
     isPremium: Boolean,
 
     rating: {
-      avarage: {
+      average: {
         type: Number,
         default: 0,
       },
@@ -54,7 +54,6 @@ const movieSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    title: String,
     duration: Number,
 
     videoUrl: String,
@@ -75,7 +74,7 @@ const movieSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-movieSchema.index({ title: "text", originalTitle: "text", tags: "text" });
+movieSchema.index({ title: "text", tags: "text" });
 // Index lọc & sắp xếp phổ biến
 movieSchema.index({ genres: 1, releaseYear: -1 });
 movieSchema.index({ viewCount: -1 });
