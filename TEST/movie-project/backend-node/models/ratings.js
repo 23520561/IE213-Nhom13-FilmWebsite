@@ -3,7 +3,7 @@ const ratingSchema = new mongoose.Schema(
   {
     movie: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "movie",
+      ref: "Movie",
       required: true,
       index: true,
     },
@@ -43,9 +43,9 @@ ratingSchema.index({ movie: 1, user: 1 }, { unique: true });
 
 // Sau khi lưu rating → cập nhật rating của movie
 ratingSchema.post("save", async function () {
-  const movie = mongoose.model("movie");
-  const movie = await movie.findById(this.movie);
-  if (movie) await movie.updateRating(this.rating);
+  const movie = mongoose.model("Movie");
+  const movieDoc = await movie.findById(this.movie);
+  if (movieDoc) await movieDoc.updateRating(this.rating);
 });
 
 export default mongoose.model("Rating", ratingSchema);
