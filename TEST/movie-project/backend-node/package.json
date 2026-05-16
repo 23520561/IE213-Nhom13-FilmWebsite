@@ -8,7 +8,8 @@
     "start": "nodemon index.js",
     "dev": "nodemon index.js",
     "import:csv": "node import-csv.js",
-    "import:jsonl": "node import-jsonl.js"
+    "import:jsonl": "node import-jsonl.js",
+    "seed:users": "node seed-related-data.js"
   },
   "keywords": [],
   "author": "",
