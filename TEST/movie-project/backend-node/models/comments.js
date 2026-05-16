@@ -10,7 +10,7 @@ const commentSchema = new mongoose.Schema(
 
     movie: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Content",
+      ref: "Movie",
       required: true,
       index: true,
     },
