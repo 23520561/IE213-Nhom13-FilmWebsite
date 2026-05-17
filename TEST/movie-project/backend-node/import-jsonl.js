@@ -68,6 +68,12 @@ async function importJsonl(filePath) {
       // Extract year from release_date
       const releaseYear = extractYear(data.release_date);
 
+      // If source includes a count (vote_count or count), assign a random high count (50k-100k)
+      const hasCountField = data.vote_count != null || data.count != null;
+      const randomCount = hasCountField
+        ? Math.floor(Math.random() * (100000 - 50000 + 1)) + 50000
+        : 0;
+
       // Prepare movie data
       const movieData = {
         movielensId: movieId,
@@ -85,7 +91,7 @@ async function importJsonl(filePath) {
         viewCount: 0,
         rating: {
           average: data.vote_average || 0,
-          count: 0,
+          count: randomCount,
         },
       };
 
