@@ -1,4 +1,4 @@
-import { gql } from "apollo-server-express";
+import { gql } from "apollo-server";
 
 const typeDefs = gql`
   enum Role {
@@ -103,3 +103,5 @@ const typeDefs = gql`
     topRatedMovies(limit: Int = 10): [Movie!]!
   }
 `;
+
+export default typeDefs;
