@@ -9,7 +9,7 @@ const typeDefs = gql`
     id: ID!
     username: String!
     email: String!
-    password: String!
+    password: String
     avatar: String
     role: Role!
     isActive: Boolean
@@ -30,7 +30,7 @@ const typeDefs = gql`
   type Movie {
     id: ID!
     movielensId: String!
-    tmdbId: Int!
+    tmdbId: Int
     title: String!
     description: String
     releaseDate: String
@@ -76,7 +76,7 @@ const typeDefs = gql`
   type Recommendation {
     id: ID!
     movie: Movie!
-    score: Float!
+    score: Float
   }
   type SimilarMovie {
     id: ID!
