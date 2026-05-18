@@ -30,7 +30,7 @@ const typeDefs = gql`
   type Movie {
     id: ID!
     movielensId: String!
-    tmdbId: Int
+    tmdbId: Int!
     title: String!
     description: String
     releaseDate: String
