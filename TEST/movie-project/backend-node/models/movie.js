@@ -29,6 +29,11 @@ const movieSchema = new mongoose.Schema(
       index: true,
     },
 
+    releaseDate: {
+      type: String,
+      default: null,
+    },
+
     releaseYear: {
       type: Number,
       required: true,
