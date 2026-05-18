@@ -16,11 +16,15 @@ class RecommenderEngine:
 
     def get_similar_movies(self, movie_id, k=config.TOP_K):
         """Content-based sử dụng Sentence Embeddings"""
-        idx = self.movies_df[self.movies_df['movieId'] == movie_id].index[0]
-        target_vec = self.embeddings[idx].reshape(1, -1)
-        sim = cosine_similarity(target_vec, self.embeddings).flatten()
-        indices = sim.argsort()[-k-1:-1][::-1]
-        return self.movies_df.iloc[indices]
+        try:
+            idx = self.movies_df[self.movies_df['movieId'] == movie_id].index[0]
+            target_vec = self.embeddings[idx].reshape(1, -1)
+            sim = cosine_similarity(target_vec, self.embeddings).flatten()
+            indices = sim.argsort()[-k-1:-1][::-1]
+            return self.movies_df.iloc[indices]
+
+        except Exception as e:
+            print(f"Error in get_similar_movies for movie_id {movie_id}:", e)
 
     def get_user_recommendations(self, user_id, k=config.TOP_K):
         """Collaborative Filtering với SVD"""
