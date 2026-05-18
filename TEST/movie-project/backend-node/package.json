@@ -6,10 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon index.js",
-    "dev": "nodemon index.js",
-    "import:csv": "node import-csv.js",
-    "import:jsonl": "node import-jsonl.js",
-    "seed:users": "node seed-related-data.js"
+    "dev": "nodemon index.js"
   },
   "keywords": [],
   "author": "",
@@ -25,7 +22,8 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "gpl": "^0.0.1",
-    "mongoose": "^9.5.0"
+    "mongoose": "^9.5.0",
+    "csv-parse": "^6.0.7"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
