@@ -1,23 +1,23 @@
 import mongoose from "mongoose";
 const watchHistorySchema = new mongoose.Schema(
   {
-    userId: {
+    user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User", // Tham chiếu đến Collection User
+      ref: "User",
       required: true,
     },
-    movieId: {
+    movie: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Movie", // Tham chiếu đến Collection Movie
+      ref: "Movie",
       required: true,
     },
     watchedTime: {
       type: Number,
-      default: 0, // Thời gian đã xem (giây)
+      default: 0,
     },
     duration: {
       type: Number,
-      required: true, // Tổng thời lượng phim
+      required: true,
     },
     isFinished: {
       type: Boolean,
@@ -25,11 +25,11 @@ const watchHistorySchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true, // Tự động tạo 'createdAt' và 'updatedAt'
+    timestamps: true,
   },
 );
 
-// Tạo Compound Index để đảm bảo 1 user chỉ có 1 bản ghi lịch sử duy nhất cho 1 bộ phim
-watchHistorySchema.index({ userId: 1, movieId: 1 }, { unique: true });
+// Compound index: 1 user only has 1 watch history record per movie
+watchHistorySchema.index({ user: 1, movie: 1 }, { unique: true });
 
 export default mongoose.model("WatchHistory", watchHistorySchema);

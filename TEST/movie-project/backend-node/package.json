@@ -4,7 +4,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "NODE_ENV=test jest --detectOpenHandles --forceExit",
+    "test:watch": "NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "NODE_ENV=test jest --coverage",
     "start": "nodemon index.js",
     "dev": "nodemon index.js"
   },
@@ -13,19 +15,22 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@apollo/server": "^4.13.0",
+    "@apollo/server": "^5.5.1",
+    "@as-integrations/express5": "^1.1.2",
     "@grpc/grpc-js": "^1.14.3",
     "@grpc/proto-loader": "^0.8.1",
-    "apollo-server": "^3.13.0",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
+    "csv-parse": "^6.0.7",
     "dataloader": "^2.2.3",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "gpl": "^0.0.1",
-    "mongoose": "^9.5.0",
-    "csv-parse": "^6.0.7"
+    "graphql-tag": "^2.12.6",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.5.0"
   },
   "devDependencies": {
+    "jest": "^29.7.0",
     "nodemon": "^3.1.14"
   }
 }

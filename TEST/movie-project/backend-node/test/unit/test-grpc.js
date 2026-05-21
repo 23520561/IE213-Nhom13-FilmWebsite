@@ -1,4 +1,4 @@
-import { getSimilarMovies } from "../../services/grpcClient.js";
+import { getSimilarMovies } from "../../proto/grpcClient.js";
 
 async function testGetSimilarMovies() {
   try {

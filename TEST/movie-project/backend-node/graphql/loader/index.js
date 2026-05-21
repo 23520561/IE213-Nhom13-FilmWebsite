@@ -7,18 +7,20 @@ export const createLoaders = () => {
   return {
     userLoader: new DataLoader(async (ids) => {
       const users = await User.find({ _id: { $in: ids } });
-      return ids.map((id) => users.find((user) => user._id.toString() === id));
+      return ids.map((id) =>
+        users.find((user) => user._id.toString() === id.toString()),
+      );
     }),
     movieLoader: new DataLoader(async (ids) => {
       const movies = await Movie.find({ _id: { $in: ids } });
       return ids.map((id) =>
-        movies.find((movie) => movie._id.toString() === id),
+        movies.find((movie) => movie._id.toString() === id.toString()),
       );
     }),
     genreLoader: new DataLoader(async (ids) => {
       const genres = await Genre.find({ _id: { $in: ids } });
       return ids.map((id) =>
-        genres.find((genre) => genre._id.toString() === id),
+        genres.find((genre) => genre._id.toString() === id.toString()),
       );
     }),
   };
