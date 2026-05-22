@@ -1,10 +1,11 @@
-import { gql } from "apollo-server";
+import { gql } from "graphql-tag";
 
 const typeDefs = gql`
   enum Role {
-    USER
-    ADMIN
+    user
+    admin
   }
+
   type User {
     id: ID!
     username: String!
@@ -14,11 +15,15 @@ const typeDefs = gql`
     role: Role!
     isActive: Boolean
     recommendations(limit: Int = 10): [Recommendation!]
+    createdAt: String!
+    updatedAt: String!
   }
+
   type MovieRating {
     average: Float
     count: Int
   }
+
   type Genre {
     id: ID!
     name: String!
@@ -27,6 +32,7 @@ const typeDefs = gql`
     thumbnail: String
     isActive: Boolean
   }
+
   type Movie {
     id: ID!
     movielensId: String!
@@ -34,6 +40,7 @@ const typeDefs = gql`
     title: String!
     description: String
     releaseDate: String
+    releaseYear: Int
     genres: [Genre!]!
     isPremium: Boolean
     rating: MovieRating
@@ -45,7 +52,10 @@ const typeDefs = gql`
     backdrop: String
     trailer: String
     similarMovies(limit: Int = 10): [SimilarMovie!]
+    createdAt: String!
+    updatedAt: String!
   }
+
   type Rating {
     id: ID!
     user: User!
@@ -54,7 +64,10 @@ const typeDefs = gql`
     likes: [User!]
     isApproved: Boolean
     isSpoiler: Boolean
+    createdAt: String!
+    updatedAt: String!
   }
+
   type WatchHistory {
     id: ID!
     user: User!
@@ -62,7 +75,10 @@ const typeDefs = gql`
     watchedTime: Int!
     duration: Int!
     isFinished: Boolean
+    createdAt: String!
+    updatedAt: String!
   }
+
   type Comment {
     id: ID!
     user: User!
@@ -73,16 +89,70 @@ const typeDefs = gql`
     likes: [User!]
     isSpoiler: Boolean
   }
+
   type Recommendation {
     id: ID!
     movie: Movie!
     score: Float
   }
+
   type SimilarMovie {
     id: ID!
     title: String!
     poster: String
   }
+
+  type AuthPayload {
+    user: User!
+    token: String!
+  }
+
+  # Input types
+  input CreateMovieInput {
+    title: String!
+    description: String!
+    releaseDate: String
+    genres: [ID!]!
+    duration: Int
+    videoUrl: String
+    poster: String
+    backdrop: String
+    trailer: String
+    isPremium: Boolean
+  }
+
+  input UpdateMovieInput {
+    title: String
+    description: String
+    releaseDate: String
+    genres: [ID!]
+    duration: Int
+    videoUrl: String
+    poster: String
+    backdrop: String
+    trailer: String
+    isPremium: Boolean
+    isFeatured: Boolean
+  }
+
+  input UpdateUserInput {
+    username: String
+    avatar: String
+    role: Role
+  }
+
+  input CreateGenreInput {
+    name: String!
+    slug: String!
+    description: String
+  }
+
+  input UpdateGenreInput {
+    name: String
+    slug: String
+    description: String
+  }
+
   type Query {
     users: [User!]!
     user(id: ID!): User
@@ -94,13 +164,44 @@ const typeDefs = gql`
     ): [Movie!]!
     movie(id: ID!): Movie
     genres: [Genre!]!
-    ratings: [Rating!]!
+    ratings(movieId: ID!): [Rating!]!
     watchHistories: [WatchHistory!]!
     myWatchHistory: [WatchHistory!]!
-    comments: [Comment!]!
+    comments(movieId: ID!): [Comment!]!
     trendingMovies(limit: Int = 10): [Movie!]!
     featuredMovies(limit: Int = 10): [Movie!]!
     topRatedMovies(limit: Int = 10): [Movie!]!
+  }
+
+  type Mutation {
+    # Auth mutations
+    register(username: String!, email: String!, password: String!): AuthPayload!
+    login(email: String!, password: String!): AuthPayload!
+    logout: Boolean!
+
+    # Movie mutations (admin only)
+    createMovie(input: CreateMovieInput!): Movie!
+    updateMovie(id: ID!, input: UpdateMovieInput!): Movie!
+    deleteMovie(id: ID!): Boolean!
+
+    # User mutations
+    updateUser(id: ID!, input: UpdateUserInput!): User!
+    deleteUser(id: ID!): Boolean!
+
+    # Rating mutations (user only)
+    createRating(movieId: ID!, rating: Int!): Rating!
+    updateRating(ratingId: ID!, rating: Int!): Rating!
+    deleteRating(ratingId: ID!): Boolean!
+
+    # Comment mutations (user only)
+    createComment(movieId: ID!, content: String!): Comment!
+    updateComment(commentId: ID!, content: String!): Comment!
+    deleteComment(commentId: ID!): Boolean!
+
+    # Genre mutations (admin only)
+    createGenre(input: CreateGenreInput!): Genre!
+    updateGenre(id: ID!, input: UpdateGenreInput!): Genre!
+    deleteGenre(id: ID!): Boolean!
   }
 `;
 

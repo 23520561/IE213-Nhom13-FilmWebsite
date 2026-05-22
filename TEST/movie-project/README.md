@@ -10,7 +10,6 @@ Tài liệu tổng quan cho dự án hệ thống quản lý và đề xuất ph
 - Hướng dẫn cài đặt & chạy
   - Backend (Node.js)
   - Recommendation service (Python)
-  - Docker (tùy chọn)
 - Dữ liệu
 - Kiểm thử
 - Góp phần
@@ -47,7 +46,6 @@ Mục tiêu: triển khai backend phục vụ dữ liệu phim, cùng dịch v�
 - Node.js 23.8.0, npm
 - Python 3.10.9
 - MongoDB (nếu backend dùng MongoDB)
-- (Tùy chọn) Docker & docker-compose
 
 ## Hướng dẫn cài đặt & chạy
 
@@ -97,22 +95,10 @@ pip install -r requirements.txt
 3. Chạy service (ví dụ dùng Uvicorn/Flask):
 
 ```bash
-# ví dụ nếu dùng FastAPI
-uvicorn app.main:app --reload --port 8001
-
-# hoặc (Flask)
 python app/main.py
 ```
 
 4. Endpoint khuyến nghị sẽ trả kết quả dựa trên model trong `models/` hoặc tính toán trực tiếp từ `data/`.
-
-### Docker (tùy chọn)
-
-Nếu có `docker-compose.yml` ở gốc, bạn có thể khởi chạy toàn bộ dịch vụ:
-
-```bash
-docker-compose up --build
-```
 
 ## Dữ liệu
 
@@ -123,11 +109,54 @@ Ghi chú: nếu dữ liệu lớn, cân nhắc seed một tập con để phát 
 
 ## Kiểm thử
 
-- Backend: chạy test trong `backend-node/tests/` (nếu có). Cấu hình test runner (ví dụ Jest) nằm trong `jest.config.js`.
+- Backend: chạy test trong `backend-node/tests/`. Cấu hình test runner nằm trong `jest.config.js`.
+
+### Chạy toàn bộ test
 
 ```bash
 cd backend-node
 npm test
+```
+
+Lệnh này sẽ chạy Jest với các option:
+
+- `--detectOpenHandles`: phát hiện các handle chưa được đóng (DB connection, timer, socket, ...)
+- `--forceExit`: tự động thoát process sau khi test hoàn tất
+
+### Chạy test ở chế độ watch
+
+Tự động rerun khi file thay đổi:
+
+```bash
+npm run test:watch
+```
+
+Script sử dụng:
+
+```json
+"test:watch": "NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --watch"
+```
+
+### Chạy test và xuất coverage
+
+```bash
+npm run test:coverage
+```
+
+Sau khi chạy xong, báo cáo coverage sẽ được tạo trong thư mục:
+
+```bash
+coverage/
+```
+
+### Scripts cấu hình
+
+```json
+{
+  "test": "NODE_ENV=test jest --detectOpenHandles --forceExit",
+  "test:watch": "NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+  "test:coverage": "NODE_ENV=test jest --coverage"
+}
 ```
 
 - Recommendation: viết các unit test cho các hàm xử lý model trong `recommendation-py` (ví dụ sử dụng `pytest`).
@@ -147,4 +176,4 @@ Nếu có câu hỏi hoặc cần trợ giúp, mở issue trên repository hoặ
 
 ## License
 
-Mặc định: kiểm tra `package.json` hoặc thêm file `LICENSE` theo nhu cầu dự án.
+Kiểm tra `package.json` hoặc thêm file `LICENSE` theo nhu cầu dự án.

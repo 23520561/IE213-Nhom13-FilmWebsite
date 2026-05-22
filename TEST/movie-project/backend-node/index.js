@@ -1,11 +1,12 @@
 import dotenv from "dotenv";
 import { app, server } from "./app.js";
 import cors from "cors";
-import { expressMiddleware } from "@apollo/server/express4";
+import { expressMiddleware } from "@as-integrations/express5";
 import { createLoaders } from "./graphql/loader/index.js";
 import mongoose from "mongoose";
 import * as models from "./models/index.js";
 import express from "express";
+import { verifyToken, extractTokenFromHeader } from "./utils/auth.js";
 
 dotenv.config();
 
@@ -42,10 +43,23 @@ const run = async () => {
     express.json(),
     expressMiddleware(server, {
       context: async ({ req }) => {
-        // You can add authentication logic here and pass the user info in the context
+        // Extract JWT from Authorization header
+        const token = extractTokenFromHeader(req.headers.authorization);
+        let user = null;
+
+        if (token) {
+          const decoded = verifyToken(token);
+          if (decoded) {
+            user = {
+              userId: decoded.userId,
+              role: decoded.role,
+            };
+          }
+        }
+
         return {
           loaders: createLoaders(),
-          user: null, // Replace with actual user info after authentication
+          user,
         };
       },
     }),

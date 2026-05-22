@@ -1,5 +1,6 @@
 import User from "../../models/user.js";
 import Movie from "../../models/movie.js";
+import Rating from "../../models/ratings.js";
 
 const getAllUsers = async () => {
   // Implementation for getting all users
@@ -20,7 +21,17 @@ const getMovies = async (page, limit) => {
 
 const getMovieById = async (id) => {
   // Implementation for getting movie by ID
-  return await Movie.findById(id);
+  const movie = await Movie.findById(id);
+  return movie;
 };
 
-export { getAllUsers, getUserById, getMovies, getMovieById };
+const getRatingsByMovieId = async (movieId) => {
+  return await Rating.find({ movie: movieId }).sort({ createdAt: -1 });
+};
+export {
+  getAllUsers,
+  getUserById,
+  getMovies,
+  getMovieById,
+  getRatingsByMovieId,
+};

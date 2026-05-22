@@ -10,6 +10,7 @@ import Rating from "./models/ratings.js";
 import WatchHistory from "./models/watchHistory.js";
 import Comment from "./models/comments.js";
 import Genre from "./models/genres.js";
+import { hashPassword } from "./utils/hashPassword.js";
 
 dotenv.config();
 
@@ -183,15 +184,36 @@ async function ensureMovies(minCount = 60) {
 
 async function ensureUsers(count = 50) {
   const users = [];
+
+  // Create test admin user
+  const adminEmail = "admin@test.com";
+  let admin = await User.findOne({ email: adminEmail });
+  if (!admin) {
+    const hashedPassword = await hashPassword("admin123");
+    admin = await User.create({
+      username: "admin",
+      email: adminEmail,
+      password: hashedPassword,
+      role: "admin",
+      isActive: true,
+    });
+    console.log(
+      `✓ Created test admin user: ${adminEmail} / password: admin123`,
+    );
+  }
+  users.push(admin);
+
+  // Create regular users
   for (let i = 1; i <= count; i += 1) {
     const username = `user${i}`;
     const email = `user${i}@example.com`;
     let user = await User.findOne({ username });
     if (!user) {
+      const hashedPassword = await hashPassword(`password${i}`);
       user = await User.create({
         username,
         email,
-        password: `password${i}`,
+        password: hashedPassword,
         role: "user",
         isActive: true,
       });
@@ -228,15 +250,15 @@ async function seedUserRelatedData(users, movies) {
 
     for (const movie of watchMovies) {
       const existing = await WatchHistory.findOne({
-        userId: user._id,
-        movieId: movie._id,
+        user: user._id,
+        movie: movie._id,
       });
       if (!existing) {
         const duration = movie.duration || randomInt(90, 160) * 60;
         const watchedTime = randomInt(Math.floor(duration * 0.4), duration);
         await WatchHistory.create({
-          userId: user._id,
-          movieId: movie._id,
+          user: user._id,
+          movie: movie._id,
           duration,
           watchedTime,
           isFinished: watchedTime >= Math.floor(duration * 0.95),

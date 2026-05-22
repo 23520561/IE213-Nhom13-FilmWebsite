@@ -1,6 +1,6 @@
 import DataLoader from "dataloader";
-import User from "../models/User";
-import Movie from "../models/Movie";
+import User from "../models/user.js";
+import Movie from "../models/movie.js";
 
 const userLoader = new DataLoader(async (ids) => {
   const users = await User.find({ _id: { $in: ids } });
