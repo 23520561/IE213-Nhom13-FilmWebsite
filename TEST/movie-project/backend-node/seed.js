@@ -182,6 +182,17 @@ async function ensureMovies(minCount = 60) {
   return existingMovies;
 }
 
+async function getNextNumericalId() {
+  const counter = await mongoose.connection.db
+    .collection("counters")
+    .findOneAndUpdate(
+      { _id: "user_numerical_id" },
+      { $inc: { seq: 1 } },
+      { upsert: true, returnDocument: "after" },
+    );
+  return counter.value ? counter.value.seq : counter.seq; // Xử lý tương thích phiên bản driver
+}
+
 async function ensureUsers(count = 50) {
   const users = [];
 
@@ -190,12 +201,14 @@ async function ensureUsers(count = 50) {
   let admin = await User.findOne({ email: adminEmail });
   if (!admin) {
     const hashedPassword = await hashPassword("admin123");
+    const nextId = await getNextNumericalId();
     admin = await User.create({
       username: "admin",
       email: adminEmail,
       password: hashedPassword,
       role: "admin",
       isActive: true,
+      numerical_id: nextId,
     });
     console.log(
       `✓ Created test admin user: ${adminEmail} / password: admin123`,
@@ -210,12 +223,14 @@ async function ensureUsers(count = 50) {
     let user = await User.findOne({ username });
     if (!user) {
       const hashedPassword = await hashPassword(`password${i}`);
+      const nextId = await getNextNumericalId();
       user = await User.create({
         username,
         email,
         password: hashedPassword,
         role: "user",
         isActive: true,
+        numerical_id: nextId,
       });
     }
     users.push(user);

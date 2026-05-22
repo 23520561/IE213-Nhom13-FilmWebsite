@@ -95,12 +95,23 @@ const resolvers = {
       // Hash password
       const hashedPassword = await hashPassword(password);
 
+      const counter = await models.User.db
+        .collection("counters")
+        .findOneAndUpdate(
+          { _id: "user_numerical_id" },
+          { $inc: { seq: 1 } },
+          { upsert: true, returnDocument: "after" }, // Lấy bản ghi sau khi đã cộng thêm 1
+        );
+
+      const nextNumericalId = counter.value ? counter.value.seq : counter.seq;
+
       // Create user
       const user = await models.User.create({
         username,
         email,
         password: hashedPassword,
         role: "user",
+        numerical_id: nextNumericalId,
       });
 
       const token = signToken(user._id, user.role);
@@ -510,7 +521,10 @@ const resolvers = {
   User: {
     recommendations: async (parent, args, context) => {
       try {
-        const recommendations = await recommendMovies(parent.id, args.limit);
+        const recommendations = await recommendMovies(
+          parent.numerical_id,
+          args.limit,
+        );
         const movieIds = recommendations.map((rec) => rec.movie_id);
         const movies = await models.Movie.find({
           movielensId: { $in: movieIds },
