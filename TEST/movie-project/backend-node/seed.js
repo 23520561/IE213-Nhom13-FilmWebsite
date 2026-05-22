@@ -105,6 +105,15 @@ async function importJsonl(filePath) {
         continue;
       }
 
+      const existingMovie = await Movie.findOne({ movielensId: movieId });
+      if (existingMovie) {
+        skipped++; // Tăng biến đếm số lượng phim bị bỏ qua
+        process.stdout.write(
+          `Imported: ${count} movies (Skipped: ${skipped})\r`,
+        );
+        continue; // Nhảy sang vòng lặp tiếp theo, bỏ qua toàn bộ logic xử lý phía dưới
+      }
+
       const genreNames = Array.isArray(data.genres)
         ? data.genres.map((g) => g.trim()).filter(Boolean)
         : [];
@@ -313,6 +322,12 @@ async function run() {
   console.log("Connected to MongoDB.");
 
   try {
+    await mongoose.connection.db.collection("counters").updateOne(
+      { _id: "user_numerical_id" },
+      { $setOnInsert: { seq: 0 } }, // Chỉ đặt bằng 0 nếu bản ghi này CHƯA TỪNG CÓ
+      { upsert: true },
+    );
+
     const jsonlPath = path.resolve("../../movies_checkpoints.jsonl");
     await importJsonl(jsonlPath);
 
