@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { MOCK_MOVIES } from "./data/movies";
+import { Routes, Route, useParams } from "react-router-dom"; // Import các công cụ quản lý URL
 import { Movie, FilterState } from "./types";
 import Header from "./components/Header";
-import HeroSection from "./components/HeroSection";
-import MovieRow from "./components/MovieRow";
-import MovieCard from "./components/MovieCard";
 import MovieDetail from "./components/MovieDetail";
 import VideoPlayer from "./components/VideoPlayer";
+import HomeView from "./components/HomeView";
+import { graphqlGetMovies } from "./services/graphql";
 import {
   Bookmark,
   Star,
@@ -23,6 +22,7 @@ import {
   Shield,
 } from "lucide-react";
 import styles from "./styles.module.css";
+import { useNavigate } from "react-router-dom";
 
 // Admin modules lazy loaded for premium production performance setup
 const AdminSidebar = React.lazy(
@@ -36,24 +36,108 @@ const AdminMovies = React.lazy(() => import("./components/admin/AdminMovies"));
 const AdminUsers = React.lazy(() => import("./components/admin/AdminUsers"));
 
 export default function App() {
-  const [movies, setMovies] = useState<Movie[]>(() => {
+  // 1. Khởi tạo danh sách phim là mảng rỗng [] thay vì dùng MOCK_MOVIES
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Khởi tạo State lưu thông tin User hiện tại từ LocalStorage
+  const [currentUser, setCurrentUser] = useState<any | null>(() => {
     try {
-      const saved = localStorage.getItem("cinemax_movies_persist");
-      return saved ? JSON.parse(saved) : MOCK_MOVIES;
+      const savedUser = localStorage.getItem("cinemax_user_info");
+      return savedUser ? JSON.parse(savedUser) : null;
     } catch {
-      return MOCK_MOVIES;
+      return null;
     }
   });
+
+  // Lưu tự động mỗi khi currentUser thay đổi
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem("cinemax_user_info", JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem("cinemax_user_info");
+    }
+  }, [currentUser]);
 
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [adminTab, setAdminTab] = useState<"overview" | "movies" | "users">(
     "overview",
   );
 
-  const [activeView, setActiveView] = useState<"home" | "detail" | "player">(
-    "home",
-  );
-  const [selectedMovieId, setSelectedMovieId] = useState<string | null>(null);
+  // 2. Tự động gọi API khi chạy ứng dụng
+  useEffect(() => {
+    async function fetchBackendMovies() {
+      try {
+        setLoading(true);
+        // Ép kiểu kết quả trả về thành any để linh hoạt bóc tách dữ liệu mà không bị TypeScript chặn
+        const data = (await graphqlGetMovies({})) as any;
+
+        console.log("Dữ liệu gốc từ Backend:", data);
+
+        // Trích xuất mảng phim thực tế dựa theo cấu trúc phân trang của backend
+        const rawMovies = data?.movies || (Array.isArray(data) ? data : []);
+
+        // CHUẨN HÓA DỮ LIỆU KHỚP 100% VỚI MONGODB BÊN BACKEND
+        const formattedMovies = rawMovies.map((movie: any) => ({
+          ...movie,
+          // 1. Đồng bộ ID (Mongoose dùng _id, Frontend tìm id)
+          id: movie.id || movie._id,
+
+          // 2. Đồng bộ năm phát hành (Backend dùng releaseYear, UI dùng year)
+          year: movie.year || movie.releaseYear || 1994,
+
+          // 3. Đồng bộ lượt xem (Database dùng viewCount -> đổi sang views cho UI)
+          views: movie.views || movie.viewCount || 0,
+
+          // 4. Đồng bộ các thuộc tính phân loại (Gán mặc định nếu database chưa có)
+          category: movie.category || "Hành Động",
+          country: movie.country || "Mỹ",
+          director: movie.director || "Đang cập nhật",
+          actors: Array.isArray(movie.actors)
+            ? movie.actors
+            : ["Đang cập nhật"],
+          originalTitle: movie.originalTitle || movie.title || "",
+
+          // 5. Khắc phục triệt để lỗi .toFixed() dựa trên object rating của bạn
+          rating: movie.rating
+            ? {
+                average:
+                  movie.rating.average !== undefined
+                    ? Number(movie.rating.average)
+                    : 8.5,
+                count: movie.rating.count || 100,
+              }
+            : { average: 8.5, count: 100 },
+          imdb: movie.imdb !== undefined ? Number(movie.imdb) : 8.5,
+
+          // 6. Đường dẫn ảnh poster và backdrop
+          poster:
+            movie.poster ||
+            "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&q=80&w=400",
+          backdrop:
+            movie.backdrop ||
+            "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200",
+
+          // 7. Đồng bộ link video phát phim
+          videoUrl: movie.videoUrl || movie.trailer || "",
+
+          // Điều kiện để lọt vào các hàng phim trang chủ
+          isNew: movie.isNew !== undefined ? movie.isNew : true,
+          isTrending: movie.isTrending !== undefined ? movie.isTrending : true,
+          duration: movie.duration || 120,
+        }));
+
+        console.log("Dữ liệu sau khi đã chuẩn hóa xong:", formattedMovies);
+        setMovies(formattedMovies);
+      } catch (error) {
+        console.error("Không thể kết nối với Backend hoặc lỗi GraphQL:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchBackendMovies();
+  }, []); // Kết thúc useEffect
 
   // Watch list state loaded from localStorage
   const [watchlistIds, setWatchlistIds] = useState<string[]>(() => {
@@ -72,6 +156,8 @@ export default function App() {
     country: "Tất Cả",
     year: "Tất Cả",
   });
+
+  const navigate = useNavigate();
 
   // Notification message alerts state
   const [notification, setNotification] = useState<string | null>(null);
@@ -112,20 +198,17 @@ export default function App() {
   };
 
   const handleMovieClick = (movieId: string) => {
-    setSelectedMovieId(movieId);
-    setActiveView("detail");
+    navigate(`/phim/${movieId}`); // Thay đổi URL thành /phim/id-cua-phim
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handlePlayClick = (movieId: string) => {
-    setSelectedMovieId(movieId);
-    setActiveView("player");
+    navigate(`/xem-phim/${movieId}`); // Thay đổi URL thành /xem-phim/id-cua-phim
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleGoHome = () => {
-    setActiveView("home");
-    setSelectedMovieId(null);
+    navigate("/"); // Trở về URL trang chủ
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -163,7 +246,7 @@ export default function App() {
   const topTrendingMovies = movies.filter((m) => m.isTrending);
 
   // Active movie entity
-  const activeMovie = movies.find((m) => m.id === selectedMovieId) || movies[0];
+  // const activeMovie = movies.find((m) => m.id === selectedMovieId) || movies[0];
 
   const hasActiveFilters =
     filters.searchQuery.trim().length > 0 ||
@@ -171,13 +254,62 @@ export default function App() {
     filters.country !== "Tất Cả" ||
     filters.year !== "Tất Cả";
 
-  // Automatically reset to home view to display search/filter results if user starts typing in other views
+  // Tự động quay về trang chủ CHỈ KHI người dùng tương tác thay đổi bộ lọc
   useEffect(() => {
-    if (hasActiveFilters && activeView !== "home") {
-      setActiveView("home");
+    // Nếu có bộ lọc và hiện tại không ở trang chủ thì mới đưa về
+    if (hasActiveFilters && window.location.pathname !== "/") {
+      navigate("/");
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
-  }, [hasActiveFilters, activeView]);
+  }, [filters]);
+
+  // ================= COMPONENT ĐỆM (WRAPPERS) =================
+  const MovieDetailWrapper = () => {
+    const { id } = useParams<{ id: string }>();
+    const activeMovie = movies.find((m) => m.id === id);
+
+    if (!activeMovie)
+      return (
+        <div className="p-20 text-white text-center">Không tìm thấy phim!</div>
+      );
+
+    return (
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+        <MovieDetail
+          movie={activeMovie}
+          allMovies={movies}
+          watchlistIds={watchlistIds}
+          onPlayClick={handlePlayClick}
+          onToggleWatchlist={handleToggleWatchlist}
+          onMovieClick={handleMovieClick}
+          onShowNotification={showNotification}
+        />
+      </div>
+    );
+  };
+
+  const VideoPlayerWrapper = () => {
+    const { id } = useParams<{ id: string }>();
+    const activeMovie = movies.find((m) => m.id === id);
+
+    if (!activeMovie)
+      return (
+        <div className="p-20 text-white text-center">Không tìm thấy phim!</div>
+      );
+
+    return (
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+        <VideoPlayer
+          movie={activeMovie}
+          onGoBack={() => {
+            navigate(`/phim/${id}`);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          onShowNotification={showNotification}
+        />
+      </div>
+    );
+  };
 
   if (isAdminMode) {
     return (
@@ -272,6 +404,8 @@ export default function App() {
 
       {/* Shared Modular Header component */}
       <Header
+        currentUser={currentUser}
+        onAuthChange={setCurrentUser}
         filters={filters}
         setFilters={setFilters}
         bookmarkCount={watchlistIds.length}
@@ -283,7 +417,7 @@ export default function App() {
             country: "Tất Cả",
             year: "Tất Cả",
           });
-          setActiveView("home");
+          navigate("/");
           showNotification("Đang hiển thị danh sách phim yêu thích của bạn");
           // Smooth scroll to watchlist category
           setTimeout(() => {
@@ -301,254 +435,37 @@ export default function App() {
 
       {/* Main content viewport */}
       <main className="flex-1 w-full flex flex-col">
-        {activeView === "home" ? (
-          /* HOME VIEW */
-          <div className="space-y-10">
-            {!hasActiveFilters && (
-              <HeroSection
+        <Routes>
+          {/* 1. ĐƯỜNG DẪN TRANG CHỦ */}
+          <Route
+            path="/"
+            element={
+              <HomeView
                 movies={movies}
+                watchlistMovies={watchlistMovies}
                 watchlistIds={watchlistIds}
-                onMovieClick={handleMovieClick}
-                onPlayClick={handlePlayClick}
-                onToggleWatchlist={handleToggleWatchlist}
+                newMovies={newMovies}
+                topTrendingMovies={topTrendingMovies}
+                theaterHotMovies={theaterHotMovies}
+                actionMovies={actionMovies}
+                hasActiveFilters={hasActiveFilters}
+                filters={filters}
+                setFilters={setFilters}
+                filteredMovies={filteredMovies}
+                handleMovieClick={handleMovieClick}
+                handlePlayClick={handlePlayClick}
+                handleToggleWatchlist={handleToggleWatchlist}
+                showNotification={showNotification}
               />
-            )}
+            }
+          />
 
-            {/* Filter tags header details if filters are active */}
-            {hasActiveFilters ? (
-              <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-6 text-left">
-                <div className="border-b border-slate-900 pb-4 space-y-2">
-                  <span className="text-[10px] uppercase tracking-widest font-black text-red-500">
-                    Bộ Lọc Phim
-                  </span>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <h2 className="text-xl sm:text-3xl font-extrabold text-white flex items-center space-x-2">
-                      <Grid2X2 className="h-6 w-6 text-red-500" />
-                      <span>
-                        Kết quả tìm kiếm cho bộ lọc ({filteredMovies.length}{" "}
-                        phim)
-                      </span>
-                    </h2>
+          {/* 2. ĐƯỜNG DẪN CHI TIẾT PHIM */}
+          <Route path="/phim/:id" element={<MovieDetailWrapper />} />
 
-                    <button
-                      onClick={() =>
-                        setFilters({
-                          searchQuery: "",
-                          category: "Tất Cả",
-                          country: "Tất Cả",
-                          year: "Tất Cả",
-                        })
-                      }
-                      className="inline-flex items-center space-x-1 border border-slate-800 bg-slate-900 px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:border-slate-700 hover:text-white transition-colors"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5 text-zinc-400" />
-                      <span>Đặt Lại Bộ Lọc</span>
-                    </button>
-                  </div>
-
-                  {/* Active tags visualizer list */}
-                  <div className="flex flex-wrap items-center gap-2 pt-2 text-xs">
-                    {filters.category !== "Tất Cả" && (
-                      <span className="rounded-full bg-red-950/80 border border-red-900/60 text-red-400 px-3 py-1 font-medium">
-                        Thể loại: {filters.category}
-                      </span>
-                    )}
-                    {filters.country !== "Tất Cả" && (
-                      <span className="rounded-full bg-slate-900 border border-slate-800 text-slate-350 px-3 py-1 font-medium">
-                        Quốc gia: {filters.country}
-                      </span>
-                    )}
-                    {filters.year !== "Tất Cả" && (
-                      <span className="rounded-full bg-slate-900 border border-slate-800 text-slate-350 px-3 py-1 font-medium">
-                        Năm: {filters.year}
-                      </span>
-                    )}
-                    {filters.searchQuery.trim().length > 0 && (
-                      <span className="rounded-full bg-slate-900 border border-slate-800 text-slate-350 px-3 py-1 font-medium">
-                        Từ khóa: "{filters.searchQuery}"
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {filteredMovies.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                    {filteredMovies.map((movie) => (
-                      <div
-                        key={movie.id}
-                        className="animate-in fade-in duration-300 text-left"
-                      >
-                        <MovieCard
-                          movie={movie}
-                          isInWatchlist={watchlistIds.includes(movie.id)}
-                          onMovieClick={handleMovieClick}
-                          onPlayClick={handlePlayClick}
-                          onToggleWatchlist={handleToggleWatchlist}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div
-                    id="no-search-results"
-                    className="text-center py-20 bg-slate-900/10 border border-slate-900 rounded-3xl space-y-4"
-                  >
-                    <Layers className="h-12 w-12 text-slate-600 mx-auto" />
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-300">
-                        Không tìm thấy phim phù hợp
-                      </h3>
-                      <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-                        Hãy thử tìm kiếm với từ khóa khác hoặc điều chỉnh các
-                        tiêu chí bộ lọc về trạng thái ban đầu để xem danh mục
-                        phim.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() =>
-                        setFilters({
-                          searchQuery: "",
-                          category: "Tất Cả",
-                          country: "Tất Cả",
-                          year: "Tất Cả",
-                        })
-                      }
-                      className="px-5 py-2 rounded-lg bg-red-600 font-bold text-xs hover:bg-red-700 transition-colors cursor-pointer"
-                    >
-                      Xóa tất cả điều kiện lọc
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* CATEGORIES ORGANIZED HOME */
-              <div className="space-y-6">
-                {/* Watch list category (if any bookmark items present) */}
-                {watchlistMovies.length > 0 && (
-                  <section
-                    id="my-watchlist-section"
-                    className="bg-gradient-to-r from-red-950/20 via-slate-950 to-slate-950 border-y border-slate-900 py-3"
-                  >
-                    <MovieRow
-                      title="Danh Sách Phim Yêu Thích Của Tôi"
-                      subtitle="Phim lẻ bạn đã đánh dấu để xem lại sau"
-                      movies={watchlistMovies}
-                      watchlistIds={watchlistIds}
-                      onMovieClick={handleMovieClick}
-                      onPlayClick={handlePlayClick}
-                      onToggleWatchlist={handleToggleWatchlist}
-                    />
-                  </section>
-                )}
-
-                {/* Phim Mới Cập Nhật */}
-                <section id="new-movies-section">
-                  <MovieRow
-                    title="Phim Mới Cập Nhật"
-                    subtitle="Phim lẻ chiếu rạp, bom tấn chất lượng 4K cực nét vừa lên sóng"
-                    movies={newMovies}
-                    watchlistIds={watchlistIds}
-                    onMovieClick={handleMovieClick}
-                    onPlayClick={handlePlayClick}
-                    onToggleWatchlist={handleToggleWatchlist}
-                  />
-                </section>
-
-                {/* Top Trending Section */}
-                <section id="trending-movies-section">
-                  <MovieRow
-                    title="Phim Lẻ Đang Thịnh Hành"
-                    subtitle="Đứng đầu lượt tìm kiếm và thảo luận của cộng đồng tuần qua"
-                    movies={topTrendingMovies}
-                    watchlistIds={watchlistIds}
-                    onMovieClick={handleMovieClick}
-                    onPlayClick={handlePlayClick}
-                    onToggleWatchlist={handleToggleWatchlist}
-                  />
-                </section>
-
-                {/* Phim Chiếu Rạp Hot */}
-                <section id="theaters-hot-section">
-                  <MovieRow
-                    title="Phim Chiếu Rạp Siêu Hot"
-                    subtitle="Tác phẩm phá kỷ lục phòng vé quốc tế lẫn trong nước"
-                    movies={theaterHotMovies}
-                    watchlistIds={watchlistIds}
-                    onMovieClick={handleMovieClick}
-                    onPlayClick={handlePlayClick}
-                    onToggleWatchlist={handleToggleWatchlist}
-                  />
-                </section>
-
-                {/* Phim Hành Động */}
-                <section id="action-movies-section">
-                  <MovieRow
-                    title="Phim Hành Động Kịch Tính"
-                    subtitle="Pha rượt đuổi nghẹt thở, đấu kiếm samurai cổ trang mãn nhãn"
-                    movies={actionMovies}
-                    watchlistIds={watchlistIds}
-                    onMovieClick={handleMovieClick}
-                    onPlayClick={handlePlayClick}
-                    onToggleWatchlist={handleToggleWatchlist}
-                  />
-                </section>
-
-                {/* Informational Promo box */}
-                <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 flex flex-col md:flex-row items-center justify-between text-left gap-4">
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-extrabold text-slate-100 flex items-center space-x-1.5 font-sans">
-                        <Sparkles className="h-4 w-4 text-amber-400" />
-                        <span>Trải Nghiệm Rạp Phim Tại Nhà Premium</span>
-                      </h4>
-                      <p className="text-xs text-zinc-400 max-w-2xl leading-relaxed font-sans">
-                        CineMax hỗ trợ mọi thành viên thưởng thức kho phim lẻ
-                        độc quyền, truyền tải hình ảnh 4K Dolby Vision sinh
-                        động, đa kênh máy chủ liên kết tốc độ cao không giới hạn
-                        băng thông và hoàn toàn loại bỏ quảng cáo.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() =>
-                        showNotification(
-                          "Độ phân giải 4K Dolby và mọi máy chủ truyền tải cao cấp đã được mở khóa tự động hoàn toàn miễn phí cho bạn!",
-                        )
-                      }
-                      className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs py-2.5 px-5 rounded-full transition-colors shrink-0 cursor-pointer font-sans font-black"
-                    >
-                      Kích Hoạt Chế Độ 4K Miễn Phí
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : activeView === "detail" ? (
-          /* DETAILED MOVIE VIEW */
-          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-            <MovieDetail
-              movie={activeMovie}
-              allMovies={movies}
-              watchlistIds={watchlistIds}
-              onPlayClick={handlePlayClick}
-              onToggleWatchlist={handleToggleWatchlist}
-              onMovieClick={handleMovieClick}
-              onShowNotification={showNotification}
-            />
-          </div>
-        ) : (
-          /* VIDEO PLAYER VIEW */
-          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-            <VideoPlayer
-              movie={activeMovie}
-              onGoBack={() => {
-                setActiveView("detail");
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-              onShowNotification={showNotification}
-            />
-          </div>
-        )}
+          {/* 3. ĐƯỜNG DẪN TRÌNH PHÁT VIDEO */}
+          <Route path="/xem-phim/:id" element={<VideoPlayerWrapper />} />
+        </Routes>
       </main>
 
       {/* FOOTER */}
