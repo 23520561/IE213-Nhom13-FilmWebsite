@@ -1,0 +1,6 @@
+{
+  "name": "Movie Streaming Website",
+  "description": "Một trang web xem phim lẻ trực tuyến hiện đại với giao diện dark mode sang trọng, trình phát video tiện lợi, tìm kiếm thông minh và lọc phim đa dạng.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
