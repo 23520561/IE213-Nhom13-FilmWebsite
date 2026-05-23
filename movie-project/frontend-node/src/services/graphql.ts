@@ -7,7 +7,7 @@ import { Movie, Profile } from "../types";
 
 // Detect GraphQL endpoint from Vite environment variables or fallback to a standard relative proxy/live route
 export const GRAPHQL_ENDPOINT =
-  import.meta.env.VITE_GRAPHQL_ENDPOINT || "/api/graphql";
+  import.meta.env.VITE_GRAPHQL_ENDPOINT || "http://localhost:3000/graphql";
 
 /**
  * Custom Error wrapper for GraphQL error payloads
@@ -246,13 +246,13 @@ export async function graphqlUpdateUserProfile(
   input: Partial<Profile>,
 ): Promise<Profile> {
   interface Response {
-    updateUserProfile: Profile;
+    updateUser: Profile;
   }
   const data = await executeGraphQL<Response>(UPDATE_USER_PROFILE, {
     id,
     input,
   });
-  return data.updateUserProfile;
+  return data.updateUser;
 }
 
 export async function graphqlGetMovies(variables: {
