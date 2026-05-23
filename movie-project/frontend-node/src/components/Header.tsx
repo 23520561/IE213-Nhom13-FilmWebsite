@@ -311,7 +311,7 @@ export default function Header({
               )}
             </div>
 
-            {onOpenAdmin && (
+            {onOpenAdmin && currentUser?.role === "admin" && (
               <button
                 id="header-admin-trigger"
                 onClick={onOpenAdmin}
@@ -498,7 +498,7 @@ export default function Header({
               </div>
             </div>
 
-            {onOpenAdmin && (
+            {onOpenAdmin && currentUser?.role === "admin" && (
               <div className="pt-2.5 border-t border-slate-800/80">
                 <button
                   onClick={() => {
