@@ -1,3 +1,10 @@
+# Frontend
+frontend-node/node_modules/
+frontend-node/.env
+frontend-node/npm-debug.log*
+frontend-node/.cache/
+frontend-node/dist/
+
 # Node
 backend-node/node_modules/
 backend-node/.env
