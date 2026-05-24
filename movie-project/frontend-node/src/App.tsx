@@ -634,19 +634,21 @@ export default function App() {
             </p>
 
             <div className="flex items-center space-x-4">
-              <button
-                onClick={() => {
-                  setIsAdminMode(true);
-                  window.scrollTo({ top: 0 });
-                  showNotification(
-                    "Đã truy cập Hệ thống Quản Trị từ lối tắt chân trang!",
-                  );
-                }}
-                className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 hover:text-blue-300 transition-colors text-[10px] font-black border border-blue-500/25 shadow-md shadow-blue-500/5 cursor-pointer"
-              >
-                <Shield className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                <span>Bàn Điều Khiển Admin (Lối tắt)</span>
-              </button>
+              {currentUser?.role === "admin" && (
+                <button
+                  onClick={() => {
+                    setIsAdminMode(true);
+                    window.scrollTo({ top: 0 });
+                    showNotification(
+                      "Đã truy cập Hệ thống Quản Trị từ lối tắt chân trang!",
+                    );
+                  }}
+                  className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 hover:text-blue-300 transition-colors text-[10px] font-black border border-blue-500/25 shadow-md shadow-blue-500/5 cursor-pointer"
+                >
+                  <Shield className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  <span>Bàn Điều Khiển Admin (Lối tắt)</span>
+                </button>
+              )}
               <p className="font-mono text-[10px]">
                 Local Time: 2026-05-21 UTC
               </p>
