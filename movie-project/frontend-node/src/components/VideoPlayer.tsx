@@ -380,7 +380,7 @@ export default function VideoPlayer({
       </div>
 
       {/* Server selector options list */}
-      <div
+      {/* <div
         id="servers-list-panel"
         className="rounded-xl border border-slate-800/80 bg-slate-900/60 p-4 sm:p-5 space-y-3 z-10 relative"
       >
@@ -432,7 +432,7 @@ export default function VideoPlayer({
             </div>
           ))}
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }
