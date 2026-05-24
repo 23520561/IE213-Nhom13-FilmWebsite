@@ -231,7 +231,7 @@ export default function HomeView({
             </section>
 
             {/* Informational Promo box */}
-            <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
+            {/* <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
               <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 flex flex-col md:flex-row items-center justify-between text-left gap-4">
                 <div className="space-y-1">
                   <h4 className="text-sm font-extrabold text-slate-100 flex items-center space-x-1.5 font-sans">
@@ -256,7 +256,7 @@ export default function HomeView({
                   Kích Hoạt Chế Độ 4K Miễn Phí
                 </button>
               </div>
-            </div>
+            </div> */}
           </div>
         )}
       </div>
