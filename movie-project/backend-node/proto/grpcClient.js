@@ -16,17 +16,21 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 const recommendationProto =
   grpc.loadPackageDefinition(packageDefinition).recommendation;
 
-// Create a gRPC client
-const client = new recommendationProto.RecommendationService(
+// Create a gRPC client (can be replaced in tests via `setClient`)
+let client = new recommendationProto.RecommendationService(
   "localhost:50051",
   grpc.credentials.createInsecure(),
 );
+
+export const setClient = (newClient) => {
+  client = newClient;
+};
 
 // Export the client for use in other parts of the application
 export const getSimilarMovies = (movieId, maxResults) => {
   return new Promise((resolve, reject) => {
     const request = {
-      movie_id: movieId,
+      movie_id: String(movieId),
       max_results: maxResults,
     };
     client.SimilarMovies(request, (error, response) => {
@@ -39,20 +43,44 @@ export const getSimilarMovies = (movieId, maxResults) => {
   });
 };
 
-export const recommendMovies = (userId, maxResults) => {
+export const recommendMovies = (
+  userId,
+  maxResults,
+  movieId = undefined,
+  alpha = undefined,
+  totalWatched = undefined,
+) => {
   return new Promise((resolve, reject) => {
     const request = {
-      user_id: userId,
-      seed_movie_ids: [], // populate with movie IDs that the user has interacted with
+      user_id: String(userId),
       max_results: maxResults,
     };
-    client.Recommend(request, (error, response) => {
-      if (error) {
-        reject(error);
-      } else {
-        resolve(response.recommendations);
-      }
-    });
+
+    if (movieId !== undefined && movieId !== null)
+      request.movie_id = String(movieId);
+    if (alpha !== undefined && alpha !== null) request.alpha = Number(alpha);
+
+    // If totalWatched provided, send it in gRPC metadata so services that
+    // haven't regenerated protos can still receive it.
+    if (totalWatched !== undefined && totalWatched !== null) {
+      const md = new grpc.Metadata();
+      md.set("total_watched", String(totalWatched));
+      client.Recommend(request, md, (error, response) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response.recommendations);
+        }
+      });
+    } else {
+      client.Recommend(request, (error, response) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response.recommendations);
+        }
+      });
+    }
   });
 };
 

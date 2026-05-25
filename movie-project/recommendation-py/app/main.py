@@ -14,15 +14,68 @@ class RecommendationService(service_pb2_grpc.RecommendationServiceServicer):
         self.engine = RecommenderEngine()
 
     def Recommend(self, request, context):
-        if hasattr(request, 'max_results') and request.max_results:
-            results = self.engine.get_user_recommendations(int(request.user_id), k=request.max_results)
+        # Parse user_id (may be int-like or string in the proto)
+        try:
+            user_id = int(request.user_id)
+        except Exception:
+            user_id = request.user_id
+
+        # Extract optional parameters for hybrid recommendation
+        movie_id = None
+        # support either `movie_id` (new proto) or `seed_movie_ids` (older proto)
+        try:
+            if hasattr(request, 'movie_id') and request.movie_id:
+                try:
+                    movie_id = int(request.movie_id)
+                except Exception:
+                    movie_id = request.movie_id
+            elif hasattr(request, 'seed_movie_ids') and len(request.seed_movie_ids) > 0:
+                # use first seed id as bias
+                try:
+                    movie_id = int(request.seed_movie_ids[0])
+                except Exception:
+                    movie_id = request.seed_movie_ids[0]
+        except Exception:
+            movie_id = None
+
+        k = request.max_results if hasattr(request, 'max_results') and request.max_results else None
+        alpha = request.alpha if hasattr(request, 'alpha') and request.alpha else 0.6
+
+        # Try to obtain total_watched from the request (if proto includes it)
+        total_watched = None
+        if hasattr(request, 'total_watched'):
+            try:
+                total_watched = int(request.total_watched)
+            except Exception:
+                total_watched = None
+
+        # Fallback: check gRPC metadata for a 'total_watched' key (string)
+        if total_watched is None:
+            try:
+                for md in context.invocation_metadata() or []:
+                    if md.key == 'total_watched':
+                        try:
+                            total_watched = int(md.value)
+                        except Exception:
+                            total_watched = None
+                        break
+            except Exception:
+                # context may not support invocation_metadata in some test harnesses
+                total_watched = None
+
+        # If total_watched is provided use switching_hybrid_recommend
+        if total_watched is not None:
+            results = self.engine.switching_hybrid_recommend(user_id=user_id, total_watched=total_watched, recent_movie_id=movie_id, k=k or getattr(config, 'TOP_K', 10), alpha=alpha)
         else:
-            results = self.engine.get_user_recommendations(int(request.user_id))
+            if k:
+                results = self.engine.hybrid_recommend(user_id=user_id, movie_id=movie_id, k=k, alpha=alpha)
+            else:
+                results = self.engine.hybrid_recommend(user_id=user_id, movie_id=movie_id, alpha=alpha)
         if results is None or results.empty:
             context.abort(grpc.StatusCode.NOT_FOUND, "No recommendations found for user_id: {}".format(request.user_id))
         recommendation_list = []
         for index, row in results.iterrows():
-            movie = service_pb2.MovieRecommendation(movie_id=str(row['movieId']), title=row['title'], score=float(row.get('score', 0.0)))
+            movie = service_pb2.MovieRecommendation(movie_id=str(row['movieId']), title=row.get('title', ''), score=float(row.get('score', 0.0)))
             recommendation_list.append(movie)
         return service_pb2.RecommendationResponse(recommendations=recommendation_list)
 

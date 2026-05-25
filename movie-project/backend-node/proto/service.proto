@@ -7,11 +7,19 @@ package recommendation;
 message RecommendationRequest {
 	string user_id = 1; // client user id
 	int32 max_results = 2; // max recommendation count
+	// Optional movie id to bias recommendations (as string to allow mixed ids)
+	string movie_id = 3;
+	// Blend factor between collaborative and content methods. 0.0 -> content only, 1.0 -> collab only
+	double alpha = 4;
+	// Number of movies the user has watched (used by switching hybrid strategy)
+	int32 total_watched = 5;
 }
 
 message MovieRecommendation {
 	string movie_id = 1;
 	string title = 2;
+	// Optional score (0-1) describing confidence/ranking
+	double score = 3;
 }
 
 message RecommendationResponse {

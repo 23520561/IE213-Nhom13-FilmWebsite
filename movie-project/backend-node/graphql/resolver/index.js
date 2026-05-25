@@ -521,10 +521,22 @@ const resolvers = {
   User: {
     recommendations: async (parent, args, context) => {
       try {
+        let watchedMovies = await models.WatchHistory.find({ user: parent.id })
+          .select("movie")
+          .sort({ updatedAt: -1 })
+          .limit(10);
+        const watchedMovieIds = watchedMovies.map((wm) => wm.movie);
+        if (watchedMovieIds.length === 0)
+          return trendingMovies(parent, { limit: args.limit }, context);
+
         const recommendations = await recommendMovies(
           parent.numerical_id,
           args.limit,
+          watchedMovieIds[0], // Lấy movieId gần nhất nếu có
+          0.6, // alpha mặc định
+          watchedMovieIds.length, // totalWatched
         );
+
         const movieIds = recommendations.map((rec) => rec.movie_id);
         const movies = await models.Movie.find({
           movielensId: { $in: movieIds },
