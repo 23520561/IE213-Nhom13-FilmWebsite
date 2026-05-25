@@ -1,6 +1,7 @@
 import os
 import sys
 import grpc
+from app import config
 from concurrent import futures
 
 # Ensure the package root is on sys.path so the `proto` package imports correctly
