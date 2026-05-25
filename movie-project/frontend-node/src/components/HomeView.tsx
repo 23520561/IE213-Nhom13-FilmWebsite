@@ -42,196 +42,188 @@ export default function HomeView({
 }: HomeViewProps) {
   return (
     <div className="space-y-10">
-      <div className="space-y-10">
-        {!hasActiveFilters && (
-          <HeroSection
-            movies={movies}
-            watchlistIds={watchlistIds}
-            onMovieClick={handleMovieClick}
-            onPlayClick={handlePlayClick}
-            onToggleWatchlist={handleToggleWatchlist}
-          />
-        )}
+      {!hasActiveFilters && (
+        <HeroSection
+          movies={movies}
+          watchlistIds={watchlistIds}
+          onMovieClick={handleMovieClick}
+          onPlayClick={handlePlayClick}
+          onToggleWatchlist={handleToggleWatchlist}
+        />
+      )}
+      {/* Filter tags header details if filters are active */}
+      {hasActiveFilters ? (
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-6 text-left">
+          <div className="border-b border-slate-900 pb-4 space-y-2">
+            <span className="text-[10px] uppercase tracking-widest font-black text-red-500">
+              Bộ Lọc Phim
+            </span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <h2 className="text-xl sm:text-3xl font-extrabold text-white flex items-center space-x-2">
+                <Grid2X2 className="h-6 w-6 text-red-500" />
+                <span>
+                  Kết quả tìm kiếm cho bộ lọc ({filteredMovies.length} phim)
+                </span>
+              </h2>
 
-        {/* Filter tags header details if filters are active */}
-        {hasActiveFilters ? (
-          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-6 text-left">
-            <div className="border-b border-slate-900 pb-4 space-y-2">
-              <span className="text-[10px] uppercase tracking-widest font-black text-red-500">
-                Bộ Lọc Phim
-              </span>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <h2 className="text-xl sm:text-3xl font-extrabold text-white flex items-center space-x-2">
-                  <Grid2X2 className="h-6 w-6 text-red-500" />
-                  <span>
-                    Kết quả tìm kiếm cho bộ lọc ({filteredMovies.length} phim)
-                  </span>
-                </h2>
-
-                <button
-                  onClick={() =>
-                    setFilters({
-                      searchQuery: "",
-                      category: "Tất Cả",
-                      country: "Tất Cả",
-                      year: "Tất Cả",
-                    })
-                  }
-                  className="inline-flex items-center space-x-1 border border-slate-800 bg-slate-900 px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:border-slate-700 hover:text-white transition-colors"
-                >
-                  <RefreshCw className="h-3.5 w-3.5 text-zinc-400" />
-                  <span>Đặt Lại Bộ Lọc</span>
-                </button>
-              </div>
-
-              {/* Active tags visualizer list */}
-              <div className="flex flex-wrap items-center gap-2 pt-2 text-xs">
-                {filters.category !== "Tất Cả" && (
-                  <span className="rounded-full bg-red-950/80 border border-red-900/60 text-red-400 px-3 py-1 font-medium">
-                    Thể loại: {filters.category}
-                  </span>
-                )}
-                {filters.country !== "Tất Cả" && (
-                  <span className="rounded-full bg-slate-900 border border-slate-800 text-slate-350 px-3 py-1 font-medium">
-                    Quốc gia: {filters.country}
-                  </span>
-                )}
-                {filters.year !== "Tất Cả" && (
-                  <span className="rounded-full bg-slate-900 border border-slate-800 text-slate-350 px-3 py-1 font-medium">
-                    Năm: {filters.year}
-                  </span>
-                )}
-                {filters.searchQuery.trim().length > 0 && (
-                  <span className="rounded-full bg-slate-900 border border-slate-800 text-slate-350 px-3 py-1 font-medium">
-                    Từ khóa: "{filters.searchQuery}"
-                  </span>
-                )}
-              </div>
+              <button
+                onClick={() =>
+                  setFilters({
+                    searchQuery: "",
+                    category: "Tất Cả",
+                    year: "Tất Cả",
+                  })
+                }
+                className="inline-flex items-center space-x-1 border border-slate-800 bg-slate-900 px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:border-slate-700 hover:text-white transition-colors"
+              >
+                <RefreshCw className="h-3.5 w-3.5 text-zinc-400" />
+                <span>Đặt Lại Bộ Lọc</span>
+              </button>
             </div>
 
-            {filteredMovies.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                {filteredMovies.map((movie) => (
-                  <div
-                    key={movie.id}
-                    className="animate-in fade-in duration-300 text-left"
-                  >
-                    <MovieCard
-                      movie={movie}
-                      isInWatchlist={watchlistIds.includes(movie.id)}
-                      onMovieClick={handleMovieClick}
-                      onPlayClick={handlePlayClick}
-                      onToggleWatchlist={handleToggleWatchlist}
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div
-                id="no-search-results"
-                className="text-center py-20 bg-slate-900/10 border border-slate-900 rounded-3xl space-y-4"
-              >
-                <Layers className="h-12 w-12 text-slate-600 mx-auto" />
-                <div>
-                  <h3 className="text-lg font-bold text-slate-300">
-                    Không tìm thấy phim phù hợp
-                  </h3>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-                    Hãy thử tìm kiếm với từ khóa khác hoặc điều chỉnh các tiêu
-                    chí bộ lọc về trạng thái ban đầu để xem danh mục phim.
-                  </p>
-                </div>
-                <button
-                  onClick={() =>
-                    setFilters({
-                      searchQuery: "",
-                      category: "Tất Cả",
-                      country: "Tất Cả",
-                      year: "Tất Cả",
-                    })
-                  }
-                  className="px-5 py-2 rounded-lg bg-red-600 font-bold text-xs hover:bg-red-700 transition-colors cursor-pointer"
-                >
-                  Xóa tất cả điều kiện lọc
-                </button>
-              </div>
-            )}
+            {/* Active tags visualizer list */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 text-xs">
+              {filters.category !== "Tất Cả" && (
+                <span className="rounded-full bg-red-950/80 border border-red-900/60 text-red-400 px-3 py-1 font-medium">
+                  Thể loại: {filters.category}
+                </span>
+              )}
+              {/* Country filter removed */}
+              {filters.year !== "Tất Cả" && (
+                <span className="rounded-full bg-slate-900 border border-slate-800 text-slate-350 px-3 py-1 font-medium">
+                  Năm: {filters.year}
+                </span>
+              )}
+              {filters.searchQuery.trim().length > 0 && (
+                <span className="rounded-full bg-slate-900 border border-slate-800 text-slate-350 px-3 py-1 font-medium">
+                  Từ khóa: "{filters.searchQuery}"
+                </span>
+              )}
+            </div>
           </div>
-        ) : (
-          /* CATEGORIES ORGANIZED HOME */
-          <div className="space-y-6">
-            {/* Watch list category (if any bookmark items present) */}
-            {watchlistMovies.length > 0 && (
-              <section
-                id="my-watchlist-section"
-                className="bg-gradient-to-r from-red-950/20 via-slate-950 to-slate-950 border-y border-slate-900 py-3"
+
+          {filteredMovies.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+              {filteredMovies.map((movie) => (
+                <div
+                  key={movie.id}
+                  className="animate-in fade-in duration-300 text-left"
+                >
+                  <MovieCard
+                    movie={movie}
+                    isInWatchlist={watchlistIds.includes(movie.id)}
+                    onMovieClick={handleMovieClick}
+                    onPlayClick={handlePlayClick}
+                    onToggleWatchlist={handleToggleWatchlist}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div
+              id="no-search-results"
+              className="text-center py-20 bg-slate-900/10 border border-slate-900 rounded-3xl space-y-4"
+            >
+              <Layers className="h-12 w-12 text-slate-600 mx-auto" />
+              <div>
+                <h3 className="text-lg font-bold text-slate-300">
+                  Không tìm thấy phim phù hợp
+                </h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+                  Hãy thử tìm kiếm với từ khóa khác hoặc điều chỉnh các tiêu chí
+                  bộ lọc về trạng thái ban đầu để xem danh mục phim.
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  setFilters({
+                    searchQuery: "",
+                    category: "Tất Cả",
+                    year: "Tất Cả",
+                  })
+                }
+                className="px-5 py-2 rounded-lg bg-red-600 font-bold text-xs hover:bg-red-700 transition-colors cursor-pointer"
               >
-                <MovieRow
-                  title="Danh Sách Phim Yêu Thích Của Tôi"
-                  subtitle="Phim lẻ bạn đã đánh dấu để xem lại sau"
-                  movies={watchlistMovies}
-                  watchlistIds={watchlistIds}
-                  onMovieClick={handleMovieClick}
-                  onPlayClick={handlePlayClick}
-                  onToggleWatchlist={handleToggleWatchlist}
-                />
-              </section>
-            )}
-
-            {/* Phim Mới Cập Nhật */}
-            <section id="new-movies-section">
+                Xóa tất cả điều kiện lọc
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* CATEGORIES ORGANIZED HOME */
+        <div className="space-y-6">
+          {/* Watch list category (if any bookmark items present) */}
+          {watchlistMovies.length > 0 && (
+            <section
+              id="my-watchlist-section"
+              className="bg-gradient-to-r from-red-950/20 via-slate-950 to-slate-950 border-y border-slate-900 py-3"
+            >
               <MovieRow
-                title="Phim Mới Cập Nhật"
-                subtitle="Phim lẻ chiếu rạp, bom tấn chất lượng 4K cực nét vừa lên sóng"
-                movies={newMovies}
+                title="Danh Sách Phim Yêu Thích Của Tôi"
+                subtitle="Phim lẻ bạn đã đánh dấu để xem lại sau"
+                movies={watchlistMovies}
                 watchlistIds={watchlistIds}
                 onMovieClick={handleMovieClick}
                 onPlayClick={handlePlayClick}
                 onToggleWatchlist={handleToggleWatchlist}
               />
             </section>
+          )}
 
-            {/* Top Trending Section */}
-            <section id="trending-movies-section">
-              <MovieRow
-                title="Phim Lẻ Đang Thịnh Hành"
-                subtitle="Đứng đầu lượt tìm kiếm và thảo luận của cộng đồng tuần qua"
-                movies={topTrendingMovies}
-                watchlistIds={watchlistIds}
-                onMovieClick={handleMovieClick}
-                onPlayClick={handlePlayClick}
-                onToggleWatchlist={handleToggleWatchlist}
-              />
-            </section>
+          {/* Phim Mới Cập Nhật */}
+          <section id="new-movies-section">
+            <MovieRow
+              title="Phim Mới Cập Nhật"
+              subtitle="Phim lẻ chiếu rạp, bom tấn chất lượng 4K cực nét vừa lên sóng"
+              movies={newMovies}
+              watchlistIds={watchlistIds}
+              onMovieClick={handleMovieClick}
+              onPlayClick={handlePlayClick}
+              onToggleWatchlist={handleToggleWatchlist}
+            />
+          </section>
 
-            {/* Phim Chiếu Rạp Hot */}
-            <section id="theaters-hot-section">
-              <MovieRow
-                title="Phim Chiếu Rạp Siêu Hot"
-                subtitle="Tác phẩm phá kỷ lục phòng vé quốc tế lẫn trong nước"
-                movies={theaterHotMovies}
-                watchlistIds={watchlistIds}
-                onMovieClick={handleMovieClick}
-                onPlayClick={handlePlayClick}
-                onToggleWatchlist={handleToggleWatchlist}
-              />
-            </section>
+          {/* Top Trending Section */}
+          <section id="trending-movies-section">
+            <MovieRow
+              title="Phim Lẻ Đang Thịnh Hành"
+              subtitle="Đứng đầu lượt tìm kiếm và thảo luận của cộng đồng tuần qua"
+              movies={topTrendingMovies}
+              watchlistIds={watchlistIds}
+              onMovieClick={handleMovieClick}
+              onPlayClick={handlePlayClick}
+              onToggleWatchlist={handleToggleWatchlist}
+            />
+          </section>
 
-            {/* Phim Hành Động */}
-            <section id="action-movies-section">
-              <MovieRow
-                title="Phim Hành Động Kịch Tính"
-                subtitle="Pha rượt đuổi nghẹt thở, đấu kiếm samurai cổ trang mãn nhãn"
-                movies={actionMovies}
-                watchlistIds={watchlistIds}
-                onMovieClick={handleMovieClick}
-                onPlayClick={handlePlayClick}
-                onToggleWatchlist={handleToggleWatchlist}
-              />
-            </section>
+          {/* Phim Chiếu Rạp Hot */}
+          <section id="theaters-hot-section">
+            <MovieRow
+              title="Phim Chiếu Rạp Siêu Hot"
+              subtitle="Tác phẩm phá kỷ lục phòng vé quốc tế lẫn trong nước"
+              movies={theaterHotMovies}
+              watchlistIds={watchlistIds}
+              onMovieClick={handleMovieClick}
+              onPlayClick={handlePlayClick}
+              onToggleWatchlist={handleToggleWatchlist}
+            />
+          </section>
 
-            {/* Informational Promo box */}
-            {/* <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
+          {/* Phim Hành Động */}
+          <section id="action-movies-section">
+            <MovieRow
+              title="Phim Hành Động Kịch Tính"
+              subtitle="Pha rượt đuổi nghẹt thở, đấu kiếm samurai cổ trang mãn nhãn"
+              movies={actionMovies}
+              watchlistIds={watchlistIds}
+              onMovieClick={handleMovieClick}
+              onPlayClick={handlePlayClick}
+              onToggleWatchlist={handleToggleWatchlist}
+            />
+          </section>
+
+          {/* Informational Promo box */}
+          {/* <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
               <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 flex flex-col md:flex-row items-center justify-between text-left gap-4">
                 <div className="space-y-1">
                   <h4 className="text-sm font-extrabold text-slate-100 flex items-center space-x-1.5 font-sans">
@@ -257,9 +249,8 @@ export default function HomeView({
                 </button>
               </div>
             </div> */}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

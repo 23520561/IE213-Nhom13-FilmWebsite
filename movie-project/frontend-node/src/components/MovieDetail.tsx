@@ -1,10 +1,22 @@
-import React, { useState } from 'react';
-import { Play, Plus, Check, Star, Eye, Calendar, Clock, Film, MessageCircle, Heart, Send } from 'lucide-react';
-import { Movie, Comment } from '../types';
-import { MOCK_COMMENTS } from '../data/movies';
-import MovieRow from './MovieRow';
-import styles from '../styles.module.css';
-import { getOptimizedImageUrl } from '../utils/image';
+import React, { useState } from "react";
+import {
+  Play,
+  Plus,
+  Check,
+  Star,
+  Eye,
+  Calendar,
+  Clock,
+  Film,
+  MessageCircle,
+  Heart,
+  Send,
+} from "lucide-react";
+import { Movie, Comment } from "../types";
+import { MOCK_COMMENTS } from "../data/movies";
+import MovieRow from "./MovieRow";
+import styles from "../styles.module.css";
+import { getOptimizedImageUrl } from "../utils/image";
 
 interface MovieDetailProps {
   movie: Movie;
@@ -23,62 +35,66 @@ export default function MovieDetail({
   onPlayClick,
   onToggleWatchlist,
   onMovieClick,
-  onShowNotification
+  onShowNotification,
 }: MovieDetailProps) {
   const [comments, setComments] = useState<Comment[]>(MOCK_COMMENTS);
-  const [newCommentName, setNewCommentName] = useState('');
-  const [newCommentContent, setNewCommentContent] = useState('');
+  const [newCommentName, setNewCommentName] = useState("");
+  const [newCommentContent, setNewCommentContent] = useState("");
 
   const isInWatchlist = watchlistIds.includes(movie.id);
 
   // Filter out the current movie and select movies with matching category for related list
-  const relatedMovies = allMovies.filter(m => m.id !== movie.id && m.category === movie.category);
+  const relatedMovies = allMovies.filter(
+    (m) => m.id !== movie.id && m.category === movie.category,
+  );
 
   // If no exact category matches, fallback to generic movies list
-  const finalRelated = relatedMovies.length > 0 
-    ? relatedMovies 
-    : allMovies.filter(m => m.id !== movie.id).slice(0, 4);
+  const finalRelated =
+    relatedMovies.length > 0
+      ? relatedMovies
+      : allMovies.filter((m) => m.id !== movie.id).slice(0, 4);
 
   const handleCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCommentContent.trim()) {
-      onShowNotification('Nội dung bình luận không được bỏ trống!');
+      onShowNotification("Nội dung bình luận không được bỏ trống!");
       return;
     }
 
-    const authorName = newCommentName.trim() || 'Người Xem Ẩn Danh';
+    const authorName = newCommentName.trim() || "Người Xem Ẩn Danh";
     const newComment: Comment = {
       id: `c-${Date.now()}`,
       author: authorName,
       avatar: `https://images.unsplash.com/photo-${1500000000000 + Math.floor(Math.random() * 500000)}?auto=format&fit=crop&q=80&w=100`,
       content: newCommentContent,
-      timestamp: 'Vừa xong',
-      likes: 0
+      timestamp: "Vừa xong",
+      likes: 0,
     };
 
-    setComments(prev => [newComment, ...prev]);
-    setNewCommentName('');
-    setNewCommentContent('');
-    onShowNotification('Cảm ơn bình luận của bạn đã được đăng công khai!');
+    setComments((prev) => [newComment, ...prev]);
+    setNewCommentName("");
+    setNewCommentContent("");
+    onShowNotification("Cảm ơn bình luận của bạn đã được đăng công khai!");
   };
 
   const handleLikeComment = (commentId: string) => {
-    setComments(prev => prev.map(c => {
-      if (c.id === commentId) {
-        return { ...c, likes: c.likes + 1 };
-      }
-      return c;
-    }));
-    onShowNotification('Đã thích bình luận!');
+    setComments((prev) =>
+      prev.map((c) => {
+        if (c.id === commentId) {
+          return { ...c, likes: (c.likes || 0) + 1 };
+        }
+        return c;
+      }),
+    );
+    onShowNotification("Đã thích bình luận!");
   };
 
   return (
     <div id="movie-detail-view" className="relative space-y-12 pb-16">
-      
       {/* Cinematic Blur Backdrop Banner overlay */}
       <div className="absolute top-0 left-0 right-0 h-[26rem] md:h-[35rem] overflow-hidden -mt-8 md:-mt-12 select-none -z-10">
         <img
-          src={getOptimizedImageUrl(movie.backdrop, 600)}
+          src={getOptimizedImageUrl(movie.backdrop || '', 600)}
           alt={movie.title}
           referrerPolicy="no-referrer"
           className="w-full h-full object-cover filter blur-md opacity-25 scale-110"
@@ -88,17 +104,16 @@ export default function MovieDetail({
 
       {/* Main details segment grids */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-11 pt-12 md:pt-20">
-        
         {/* Poster side */}
         <div className="md:col-span-4 flex flex-col items-center">
           <div className="relative w-64 sm:w-72 md:w-full aspect-[2/3] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-900 group">
             <img
-              src={getOptimizedImageUrl(movie.poster, 400)}
+              src={getOptimizedImageUrl(movie.poster || '', 400)}
               alt={movie.title}
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover"
             />
-            
+
             {/* Top info badge tags on poster overlay */}
             <div className="absolute top-3 left-3 flex flex-col gap-1.5 font-bold">
               <span className="inline-flex items-center rounded-lg bg-slate-950/95 text-xs text-amber-400 px-3 py-1 border border-slate-700/80 shadow-lg">
@@ -116,13 +131,10 @@ export default function MovieDetail({
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded bg-red-950 text-red-400 border border-red-900 px-2.5 py-0.5 text-xs font-black uppercase">
-                {movie.category}
-              </span>
-              <span className="rounded bg-slate-900 text-slate-400 border border-slate-800 px-2 py-0.5 text-xs">
-                {movie.country}
+                {(movie.genres && movie.genres.length > 0) ? (movie.genres.map(g => (typeof g === 'string' ? g : g.name)).join(', ')) : movie.category}
               </span>
             </div>
-            
+
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight">
               {movie.title}
             </h1>
@@ -132,22 +144,31 @@ export default function MovieDetail({
           </div>
 
           {/* Quick tags specs lists */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl border border-slate-900 bg-slate-950/70 font-mono text-zinc-350">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-4 rounded-xl border border-slate-900 bg-slate-950/70 font-mono text-zinc-350">
             <div className="flex flex-col">
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Năm Phát Hành</span>
-              <span className="text-xs sm:text-sm font-semibold text-slate-200 mt-0.5">{movie.year}</span>
+              <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">
+                Năm Phát Hành
+              </span>
+              <span className="text-xs sm:text-sm font-semibold text-slate-200 mt-0.5">
+                {movie.year}
+              </span>
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Thời Lượng</span>
-              <span className="text-xs sm:text-sm font-semibold text-slate-200 mt-0.5">{movie.duration} Phút</span>
+              <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">
+                Thời Lượng
+              </span>
+              <span className="text-xs sm:text-sm font-semibold text-slate-200 mt-0.5">
+                {movie.duration} Phút
+              </span>
             </div>
+
             <div className="flex flex-col">
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Ngôn Ngữ</span>
-              <span className="text-xs sm:text-sm font-semibold text-slate-200 mt-0.5">{movie.language}</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Lượt Xem Web</span>
-              <span className="text-xs sm:text-sm font-semibold text-slate-200 mt-0.5">{(movie.views + 1250).toLocaleString('vi-VN')}</span>
+              <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">
+                Lượt Xem Web
+              </span>
+              <span className="text-xs sm:text-sm font-semibold text-slate-200 mt-0.5">
+                {((movie.views || 0) + 1250).toLocaleString("vi-VN")}
+              </span>
             </div>
           </div>
 
@@ -167,30 +188,40 @@ export default function MovieDetail({
               onClick={() => onToggleWatchlist(movie.id)}
               className={`flex items-center space-x-1.5 rounded-full px-5 py-4 text-sm font-semibold border transition-all ${
                 isInWatchlist
-                  ? 'bg-slate-900 border-red-500 text-red-500'
-                  : 'bg-slate-900/60 border-slate-700 hover:border-slate-500 text-slate-200'
+                  ? "bg-slate-900 border-red-500 text-red-500"
+                  : "bg-slate-900/60 border-slate-700 hover:border-slate-500 text-slate-200"
               }`}
             >
-              {isInWatchlist ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              <span>{isInWatchlist ? 'ĐÃ THÊM VÀO LIST' : 'LƯU VÀO DANH SÁCH'}</span>
+              {isInWatchlist ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              <span>
+                {isInWatchlist ? "ĐÃ THÊM VÀO LIST" : "LƯU VÀO DANH SÁCH"}
+              </span>
             </button>
           </div>
 
           {/* Synopsis & staff list details */}
           <div className="space-y-4 pt-3">
             <div className="space-y-2 border-l-2 border-[#ef4444] pl-4">
-              <h3 className="text-xs uppercase font-black tracking-widest text-zinc-500">Tóm tắt nội dung</h3>
+              <h3 className="text-xs uppercase font-black tracking-widest text-zinc-500">
+                Tóm tắt nội dung
+              </h3>
               <p className="text-sm dark:text-zinc-300 leading-relaxed font-normal">
-                {movie.synopsis}
+                {movie.description}
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 text-xs">
               <p className="text-slate-400">
-                <strong className="text-slate-200">Đạo diễn:</strong> {movie.director}
+                <strong className="text-slate-200">Đạo diễn:</strong>{" "}
+                {movie.director}
               </p>
               <p className="text-slate-400">
-                <strong className="text-slate-200">Diễn viên chính:</strong> {movie.actors.join(', ')}
+                <strong className="text-slate-200">Diễn viên chính:</strong>{" "}
+                {(movie.actors || []).join(", ")}
               </p>
             </div>
           </div>
@@ -198,8 +229,10 @@ export default function MovieDetail({
       </div>
 
       {/* Structured Comments zone */}
-      <section id="comments-section" className="border-t border-slate-900 pt-10 grid grid-cols-1 lg:grid-cols-12 gap-8 text-left">
-        
+      <section
+        id="comments-section"
+        className="border-t border-slate-900 pt-10 grid grid-cols-1 lg:grid-cols-12 gap-8 text-left"
+      >
         {/* Comment input form (col span 5) */}
         <div className="lg:col-span-4 space-y-4">
           <div className="space-y-1">
@@ -207,10 +240,15 @@ export default function MovieDetail({
               <MessageCircle className="h-5 w-5 text-red-500" />
               <span>Gửi Bình Luận</span>
             </h3>
-            <p className="text-xs text-zinc-500">Nhập phản hồi hoặc đánh giá của bạn về phim</p>
+            <p className="text-xs text-zinc-500">
+              Nhập phản hồi hoặc đánh giá của bạn về phim
+            </p>
           </div>
 
-          <form onSubmit={handleCommentSubmit} className="space-y-3.5 bg-slate-900/40 p-4 rounded-xl border border-slate-800">
+          <form
+            onSubmit={handleCommentSubmit}
+            className="space-y-3.5 bg-slate-900/40 p-4 rounded-xl border border-slate-800"
+          >
             <div>
               <input
                 type="text"
@@ -242,7 +280,9 @@ export default function MovieDetail({
 
         {/* List of comments (col span 8) */}
         <div className="lg:col-span-8 space-y-4">
-          <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">({comments.length}) Đánh giá thảo luận</h3>
+          <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">
+            ({comments.length}) Đánh giá thảo luận
+          </h3>
 
           <div className="space-y-3 max-h-[30rem] overflow-y-auto pr-2 customScrollbar">
             {comments.map((comment) => (
@@ -259,8 +299,12 @@ export default function MovieDetail({
 
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-slate-200">{comment.author}</span>
-                    <span className="text-[10px] text-zinc-500">{comment.timestamp}</span>
+                    <span className="text-xs font-extrabold text-slate-200">
+                      {comment.author}
+                    </span>
+                    <span className="text-[10px] text-zinc-500">
+                      {comment.timestamp}
+                    </span>
                   </div>
 
                   <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">

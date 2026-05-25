@@ -112,6 +112,11 @@ export const GET_MOVIES = `
       title
       description
       releaseYear
+      releaseDate
+      movielensId
+      tmdbId
+      viewCount
+      isPremium
       duration
       isFeatured
       videoUrl
@@ -144,6 +149,11 @@ export const GET_MOVIE_BY_ID = `
         count
       }
       releaseYear
+      releaseDate
+      movielensId
+      tmdbId
+      viewCount
+      isPremium
       duration
       isFeatured
       genres {
@@ -262,10 +272,16 @@ export async function graphqlGetMovies(variables: {
   search?: string;
 }): Promise<Movie[]> {
   interface Response {
-    movies: Movie[];
+    movies: Movie[] | null;
   }
-  const data = await executeGraphQL<Response>(GET_MOVIES, variables);
-  return data.movies;
+
+  try {
+    const data = await executeGraphQL<Response>(GET_MOVIES, variables);
+    return data && data.movies ? data.movies : [];
+  } catch (err) {
+    console.error("graphqlGetMovies failed:", err);
+    return [];
+  }
 }
 
 export async function graphqlGetGenres() {
@@ -322,12 +338,18 @@ export async function graphqlLogin(email: string, password: string) {
   return data.login;
 }
 
-export async function graphqlGetMovieById(id: string): Promise<Movie> {
+export async function graphqlGetMovieById(id: string): Promise<Movie | null> {
   interface Response {
-    movie: Movie;
+    movie: Movie | null;
   }
-  const data = await executeGraphQL<Response>(GET_MOVIE_BY_ID, { id });
-  return data.movie;
+
+  try {
+    const data = await executeGraphQL<Response>(GET_MOVIE_BY_ID, { id });
+    return data && data.movie ? data.movie : (null as any);
+  } catch (err) {
+    console.error("graphqlGetMovieById failed:", err);
+    return null as any;
+  }
 }
 
 export async function graphqlToggleWatchlist(
@@ -335,14 +357,23 @@ export async function graphqlToggleWatchlist(
   movieId: string,
 ): Promise<{ success: boolean; watchlistIds: string[] }> {
   interface Response {
-    toggleWatchlist: {
+    toggleWatchlist?: {
       success: boolean;
       watchlistIds: string[];
     };
   }
-  const data = await executeGraphQL<Response>(TOGGLE_WATCHLIST, {
-    userId,
-    movieId,
-  });
-  return data.toggleWatchlist;
+
+  try {
+    const data = await executeGraphQL<Response>(TOGGLE_WATCHLIST, {
+      userId,
+      movieId,
+    });
+
+    if (data && data.toggleWatchlist) return data.toggleWatchlist;
+    return { success: false, watchlistIds: [] };
+  } catch (err) {
+    // If backend does not support server-side watchlist, fall back gracefully
+    console.warn("graphqlToggleWatchlist unavailable, falling back:", err);
+    return { success: false, watchlistIds: [] };
+  }
 }

@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { Routes, Route, useParams } from "react-router-dom"; // Import các công cụ quản lý URL
-import { Movie, FilterState } from "./types";
+import { Routes, Route, useParams, useNavigate } from "react-router-dom"; // Import các công cụ quản lý URL
+import { Movie, FilterState, User } from "./types";
 import Header from "./components/Header";
 import MovieDetail from "./components/MovieDetail";
 import VideoPlayer from "./components/VideoPlayer";
 import HomeView from "./components/HomeView";
-import { graphqlGetMovies } from "./services/graphql";
+import {
+  graphqlGetMovies,
+  graphqlGetMovieById,
+  graphqlToggleWatchlist,
+} from "./services/graphql";
 import {
   Bookmark,
   Star,
@@ -22,7 +26,6 @@ import {
   Shield,
 } from "lucide-react";
 import styles from "./styles.module.css";
-import { useNavigate } from "react-router-dom";
 
 // Admin modules lazy loaded for premium production performance setup
 const AdminSidebar = React.lazy(
@@ -41,7 +44,7 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(true);
 
   // Khởi tạo State lưu thông tin User hiện tại từ LocalStorage
-  const [currentUser, setCurrentUser] = useState<any | null>(() => {
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
       const savedUser = localStorage.getItem("cinemax_user_info");
       return savedUser ? JSON.parse(savedUser) : null;
@@ -78,27 +81,27 @@ export default function App() {
         const rawMovies = data?.movies || (Array.isArray(data) ? data : []);
 
         // CHUẨN HÓA DỮ LIỆU KHỚP 100% VỚI MONGODB BÊN BACKEND
-        const formattedMovies = rawMovies.map((movie: any) => ({
+        const normalize = (movie: any) => ({
           ...movie,
-          // 1. Đồng bộ ID (Mongoose dùng _id, Frontend tìm id)
           id: movie.id || movie._id,
-
-          // 2. Đồng bộ năm phát hành (Backend dùng releaseYear, UI dùng year)
-          year: movie.year || movie.releaseYear || 1994,
-
-          // 3. Đồng bộ lượt xem (Database dùng viewCount -> đổi sang views cho UI)
+          year:
+            movie.year ||
+            movie.releaseYear ||
+            (movie.releaseDate
+              ? new Date(movie.releaseDate).getFullYear()
+              : 1994),
           views: movie.views || movie.viewCount || 0,
-
-          // 4. Đồng bộ các thuộc tính phân loại (Gán mặc định nếu database chưa có)
-          category: movie.category || "Hành Động",
-          country: movie.country || "Mỹ",
+          // Derive `category` from `genres` field supplied by backend
+          category:
+            (Array.isArray(movie.genres) && movie.genres.length > 0
+              ? // genres might be objects { id, name } or simple strings
+                (movie.genres[0].name || movie.genres[0])
+              : movie.category) || "Hành Động",
           director: movie.director || "Đang cập nhật",
           actors: Array.isArray(movie.actors)
             ? movie.actors
             : ["Đang cập nhật"],
           originalTitle: movie.originalTitle || movie.title || "",
-
-          // 5. Khắc phục triệt để lỗi .toFixed() dựa trên object rating của bạn
           rating: movie.rating
             ? {
                 average:
@@ -109,23 +112,19 @@ export default function App() {
               }
             : { average: 8.5, count: 100 },
           imdb: movie.imdb !== undefined ? Number(movie.imdb) : 8.5,
-
-          // 6. Đường dẫn ảnh poster và backdrop
           poster:
             movie.poster ||
             "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&q=80&w=400",
           backdrop:
             movie.backdrop ||
             "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200",
-
-          // 7. Đồng bộ link video phát phim
           videoUrl: movie.videoUrl || movie.trailer || "",
-
-          // Điều kiện để lọt vào các hàng phim trang chủ
           isNew: movie.isNew !== undefined ? movie.isNew : true,
           isTrending: movie.isTrending !== undefined ? movie.isTrending : true,
           duration: movie.duration || 120,
-        }));
+        });
+
+        const formattedMovies = rawMovies.map((movie: any) => normalize(movie));
 
         console.log("Dữ liệu sau khi đã chuẩn hóa xong:", formattedMovies);
         setMovies(formattedMovies);
@@ -143,7 +142,9 @@ export default function App() {
   const [watchlistIds, setWatchlistIds] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem("cinemax_watchlist");
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -153,7 +154,6 @@ export default function App() {
   const [filters, setFilters] = useState<FilterState>({
     searchQuery: "",
     category: "Tất Cả",
-    country: "Tất Cả",
     year: "Tất Cả",
   });
 
@@ -184,6 +184,71 @@ export default function App() {
     const movieObj = movies.find((m) => m.id === movieId);
     if (!movieObj) return;
 
+    // If user is logged in, attempt server-side toggle; otherwise fall back to localStorage
+    if (currentUser) {
+      // currentUser may come from different shapes depending on auth flow; normalize to string id
+      const uid =
+        (currentUser as any)?.id ||
+        (currentUser as any)?._id ||
+        String((currentUser as any)?.numerical_id || "");
+      if (!uid) {
+        // fallback to local-only
+        if (watchlistIds.includes(movieId)) {
+          setWatchlistIds((prev) => prev.filter((id) => id !== movieId));
+          showNotification(
+            `Đã loại bỏ "${movieObj.title}" khỏi Danh sách yêu thích.`,
+          );
+        } else {
+          setWatchlistIds((prev) => [...prev, movieId]);
+          showNotification(
+            `Đã thêm "${movieObj.title}" vào Danh sách yêu thích thành công!`,
+          );
+        }
+        return;
+      }
+      graphqlToggleWatchlist(uid, movieId)
+        .then((res) => {
+          if (res && res.success) {
+            setWatchlistIds(res.watchlistIds || []);
+            const action = res.watchlistIds.includes(movieId)
+              ? "Thêm"
+              : "Loại bỏ";
+            showNotification(
+              `${action} "${movieObj.title}" vào Danh sách yêu thích.`,
+            );
+          } else {
+            // fallback to local
+            if (watchlistIds.includes(movieId)) {
+              setWatchlistIds((prev) => prev.filter((id) => id !== movieId));
+              showNotification(
+                `Đã loại bỏ "${movieObj.title}" khỏi Danh sách yêu thích.`,
+              );
+            } else {
+              setWatchlistIds((prev) => [...prev, movieId]);
+              showNotification(
+                `Đã thêm "${movieObj.title}" vào Danh sách yêu thích thành công!`,
+              );
+            }
+          }
+        })
+        .catch(() => {
+          // network or server error -> fallback to local behavior
+          if (watchlistIds.includes(movieId)) {
+            setWatchlistIds((prev) => prev.filter((id) => id !== movieId));
+            showNotification(
+              `Đã loại bỏ "${movieObj.title}" khỏi Danh sách yêu thích.`,
+            );
+          } else {
+            setWatchlistIds((prev) => [...prev, movieId]);
+            showNotification(
+              `Đã thêm "${movieObj.title}" vào Danh sách yêu thích thành công!`,
+            );
+          }
+        });
+      return;
+    }
+
+    // Local-only behavior
     if (watchlistIds.includes(movieId)) {
       setWatchlistIds((prev) => prev.filter((id) => id !== movieId));
       showNotification(
@@ -214,26 +279,43 @@ export default function App() {
 
   // Determine active dynamic film list depending on multi-dimensional filters
   const filteredMovies = movies.filter((movie) => {
+    const q = filters.searchQuery.toLowerCase();
     const matchesSearch =
-      movie.title.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
-      movie.originalTitle
-        .toLowerCase()
-        .includes(filters.searchQuery.toLowerCase()) ||
-      movie.director
-        .toLowerCase()
-        .includes(filters.searchQuery.toLowerCase()) ||
-      movie.actors.some((actor) =>
-        actor.toLowerCase().includes(filters.searchQuery.toLowerCase()),
+      (movie.title || "").toLowerCase().includes(q) ||
+      ((movie.originalTitle || "").toLowerCase().includes(q)) ||
+      ((movie.director || "").toLowerCase().includes(q)) ||
+      ((movie.actors || []) as string[]).some((actor) =>
+        (actor || "").toLowerCase().includes(q),
       );
 
     const matchesCategory =
       filters.category === "Tất Cả" || movie.category === filters.category;
-    const matchesCountry =
-      filters.country === "Tất Cả" || movie.country === filters.country;
-    const matchesYear =
-      filters.year === "Tất Cả" || movie.year.toString() === filters.year;
+    // Country filter removed — always match
+    const matchesCountry = true;
+    // Year filter: support exact year or ranges like "1990-2000" or relational like ">2000"/"<1990"
+    let matchesYear = true;
+    const fy = filters.year?.toString?.().trim();
+    if (fy && fy !== "Tất Cả") {
+      const my = Number(movie.year ?? NaN);
+      if (fy.includes("-")) {
+        const parts = fy.split("-").map((p) => Number(p.trim()));
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+          matchesYear = my >= parts[0] && my <= parts[1];
+        } else {
+          matchesYear = String(movie.year ?? "") === fy;
+        }
+      } else if (fy.startsWith(">")) {
+        const n = Number(fy.slice(1));
+        matchesYear = !isNaN(n) ? my > n : String(movie.year ?? "") === fy;
+      } else if (fy.startsWith("<")) {
+        const n = Number(fy.slice(1));
+        matchesYear = !isNaN(n) ? my < n : String(movie.year ?? "") === fy;
+      } else {
+        matchesYear = String(movie.year ?? "") === fy;
+      }
+    }
 
-    return matchesSearch && matchesCategory && matchesCountry && matchesYear;
+    return matchesSearch && matchesCategory && matchesYear;
   });
 
   // Watchlist movies matching filtered list
@@ -241,8 +323,8 @@ export default function App() {
 
   // Categorizations lists for home layout view
   const newMovies = movies.filter((m) => m.isNew);
-  const actionMovies = movies.filter((m) => m.category === "Hành Động");
-  const theaterHotMovies = movies.filter((m) => m.views > 180000);
+  const actionMovies = movies.filter((m) => m.category === "Hành Động" || m.category === "Action");
+  const theaterHotMovies = movies.filter((m) => (m.views ?? 0) > 180000);
   const topTrendingMovies = movies.filter((m) => m.isTrending);
 
   // Active movie entity
@@ -251,7 +333,6 @@ export default function App() {
   const hasActiveFilters =
     filters.searchQuery.trim().length > 0 ||
     filters.category !== "Tất Cả" ||
-    filters.country !== "Tất Cả" ||
     filters.year !== "Tất Cả";
 
   // Tự động quay về trang chủ CHỈ KHI người dùng tương tác thay đổi bộ lọc
@@ -266,8 +347,86 @@ export default function App() {
   // ================= COMPONENT ĐỆM (WRAPPERS) =================
   const MovieDetailWrapper = () => {
     const { id } = useParams<{ id: string }>();
-    const activeMovie = movies.find((m) => m.id === id);
+    const [activeMovie, setActiveMovie] = React.useState<Movie | null>(null);
+    const [loadingDetail, setLoadingDetail] = React.useState(false);
 
+    useEffect(() => {
+      let mounted = true;
+      const local = movies.find((m) => m.id === id);
+      if (local) {
+        setActiveMovie(local);
+        return;
+      }
+
+      async function load() {
+        if (!id) return;
+        setLoadingDetail(true);
+        try {
+          const m = await graphqlGetMovieById(id);
+          if (!mounted) return;
+          if (!m) {
+            setActiveMovie(null);
+            return;
+          }
+          // Normalize same as list
+          const normalized = {
+            ...m,
+            id: m.id || (m as any)._id,
+            year:
+              (m as any).year ||
+              m.releaseYear ||
+              (m.releaseDate ? new Date(m.releaseDate).getFullYear() : 1994),
+            views: (m as any).views || (m as any).viewCount || 0,
+            category:
+              (Array.isArray((m as any).genres) && (m as any).genres.length > 0
+                ? ((m as any).genres[0].name || (m as any).genres[0])
+                : (m as any).category) || "Hành Động",
+            director: (m as any).director || "Đang cập nhật",
+            actors: Array.isArray((m as any).actors)
+              ? (m as any).actors
+              : ["Đang cập nhật"],
+            originalTitle: (m as any).originalTitle || m.title || "",
+            rating: m.rating
+              ? {
+                  average: Number(m.rating.average || 8.5),
+                  count: m.rating.count || 100,
+                }
+              : { average: 8.5, count: 100 },
+            poster:
+              m.poster ||
+              "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&q=80&w=400",
+            backdrop:
+              m.backdrop ||
+              "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200",
+            videoUrl: m.videoUrl || (m as any).trailer || "",
+            isNew: (m as any).isNew !== undefined ? (m as any).isNew : true,
+            isTrending:
+              (m as any).isTrending !== undefined
+                ? (m as any).isTrending
+                : true,
+            duration: m.duration || 120,
+          } as Movie;
+
+          setActiveMovie(normalized);
+        } catch (err) {
+          console.error("Failed to load movie by id:", err);
+          setActiveMovie(null);
+        } finally {
+          setLoadingDetail(false);
+        }
+      }
+
+      load();
+
+      return () => {
+        mounted = false;
+      };
+    }, [id, movies]);
+
+    if (loadingDetail)
+      return (
+        <div className="p-20 text-white text-center">Đang nạp phim...</div>
+      );
     if (!activeMovie)
       return (
         <div className="p-20 text-white text-center">Không tìm thấy phim!</div>
@@ -290,8 +449,85 @@ export default function App() {
 
   const VideoPlayerWrapper = () => {
     const { id } = useParams<{ id: string }>();
-    const activeMovie = movies.find((m) => m.id === id);
+    const [activeMovie, setActiveMovie] = React.useState<Movie | null>(null);
+    const [loadingPlayer, setLoadingPlayer] = React.useState(false);
 
+    useEffect(() => {
+      let mounted = true;
+      const local = movies.find((m) => m.id === id);
+      if (local) {
+        setActiveMovie(local);
+        return;
+      }
+
+      async function load() {
+        if (!id) return;
+        setLoadingPlayer(true);
+        try {
+          const m = await graphqlGetMovieById(id);
+          if (!mounted) return;
+          if (!m) {
+            setActiveMovie(null);
+            return;
+          }
+          const normalized = {
+            ...m,
+            id: m.id || (m as any)._id,
+            year:
+              (m as any).year ||
+              m.releaseYear ||
+              (m.releaseDate ? new Date(m.releaseDate).getFullYear() : 1994),
+            views: (m as any).views || (m as any).viewCount || 0,
+            category:
+              (Array.isArray((m as any).genres) && (m as any).genres.length > 0
+                ? ((m as any).genres[0].name || (m as any).genres[0])
+                : (m as any).category) || "Hành Động",
+            director: (m as any).director || "Đang cập nhật",
+            actors: Array.isArray((m as any).actors)
+              ? (m as any).actors
+              : ["Đang cập nhật"],
+            originalTitle: (m as any).originalTitle || m.title || "",
+            rating: m.rating
+              ? {
+                  average: Number(m.rating.average || 8.5),
+                  count: m.rating.count || 100,
+                }
+              : { average: 8.5, count: 100 },
+            poster:
+              m.poster ||
+              "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&q=80&w=400",
+            backdrop:
+              m.backdrop ||
+              "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200",
+            videoUrl: m.videoUrl || (m as any).trailer || "",
+            isNew: (m as any).isNew !== undefined ? (m as any).isNew : true,
+            isTrending:
+              (m as any).isTrending !== undefined
+                ? (m as any).isTrending
+                : true,
+            duration: m.duration || 120,
+          } as Movie;
+
+          setActiveMovie(normalized);
+        } catch (err) {
+          console.error("Failed to load movie for player:", err);
+          setActiveMovie(null);
+        } finally {
+          setLoadingPlayer(false);
+        }
+      }
+
+      load();
+
+      return () => {
+        mounted = false;
+      };
+    }, [id, movies]);
+
+    if (loadingPlayer)
+      return (
+        <div className="p-20 text-white text-center">Đang nạp phim...</div>
+      );
     if (!activeMovie)
       return (
         <div className="p-20 text-white text-center">Không tìm thấy phim!</div>
@@ -414,11 +650,14 @@ export default function App() {
           setFilters({
             searchQuery: "",
             category: "Tất Cả",
-            country: "Tất Cả",
             year: "Tất Cả",
           });
           navigate("/");
-          showNotification("Đang hiển thị danh sách phim yêu thích của bạn");
+          if (!watchlistIds || watchlistIds.length === 0) {
+            showNotification("Danh sách yêu thích của bạn hiện đang trống.");
+          } else {
+            showNotification(`Đang hiển thị danh sách phim yêu thích của bạn (${watchlistIds.length})`);
+          }
           // Smooth scroll to watchlist category
           setTimeout(() => {
             const listNode = document.getElementById("my-watchlist-section");
@@ -474,7 +713,7 @@ export default function App() {
         className="mt-20 border-t border-slate-800/50 bg-[#0b1222] py-12"
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
             {/* Branding */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
@@ -501,102 +740,50 @@ export default function App() {
                 <li>
                   <button
                     onClick={() => {
-                      setFilters((p) => ({ ...p, category: "Hành Động" }));
+                      setFilters((p) => ({ ...p, category: "Action" }));
                       handleGoHome();
                     }}
                     className="hover:text-red-500 transition-colors"
                   >
-                    Phim Hành Động Võ Thuật
+                    Phim Hành Động
                   </button>
                 </li>
                 <li>
                   <button
                     onClick={() => {
-                      setFilters((p) => ({ ...p, category: "Viễn Tưởng" }));
+                      setFilters((p) => ({ ...p, category: "Adventure" }));
                       handleGoHome();
                     }}
                     className="hover:text-red-500 transition-colors"
                   >
-                    Khoa Học Viễn Tưởng
+                    Phiêu Lưu / Viễn Tưởng
                   </button>
                 </li>
                 <li>
                   <button
                     onClick={() => {
-                      setFilters((p) => ({ ...p, category: "Cổ Trang" }));
+                      setFilters((p) => ({ ...p, category: "History" }));
                       handleGoHome();
                     }}
                     className="hover:text-red-500 transition-colors"
                   >
-                    Cổ Trang Kiếm Hiệp
+                    Phim Cổ Trang / Lịch Sử
                   </button>
                 </li>
                 <li>
                   <button
                     onClick={() => {
-                      setFilters((p) => ({ ...p, category: "Hoạt Hình" }));
+                      setFilters((p) => ({ ...p, category: "Animation" }));
                       handleGoHome();
                     }}
                     className="hover:text-red-500 transition-colors"
                   >
-                    Hoạt Hình Anime 3D
+                    Hoạt Hình
                   </button>
                 </li>
               </ul>
             </div>
-
-            {/* Links B */}
-            <div className="space-y-3">
-              <h4 className="text-xs uppercase font-black text-slate-350 tracking-wider">
-                Quốc Gia Lọc Phim
-              </h4>
-              <ul className="space-y-2 text-xs text-zinc-550 font-medium">
-                <li>
-                  <button
-                    onClick={() => {
-                      setFilters((p) => ({ ...p, country: "Mỹ" }));
-                      handleGoHome();
-                    }}
-                    className="hover:text-red-500 transition-colors"
-                  >
-                    Phim Lẻ Âu Mỹ
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => {
-                      setFilters((p) => ({ ...p, country: "Hàn Quốc" }));
-                      handleGoHome();
-                    }}
-                    className="hover:text-red-500 transition-colors"
-                  >
-                    Phim Điện Ảnh Hàn Quốc
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => {
-                      setFilters((p) => ({ ...p, country: "Nhật Bản" }));
-                      handleGoHome();
-                    }}
-                    className="hover:text-red-500 transition-colors"
-                  >
-                    Điện Ảnh Nhật Bản
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => {
-                      setFilters((p) => ({ ...p, country: "Việt Nam" }));
-                      handleGoHome();
-                    }}
-                    className="hover:text-red-500 transition-colors"
-                  >
-                    Phim Chiếu Rạp Việt Nam
-                  </button>
-                </li>
-              </ul>
-            </div>
+            {/* (Removed country links column) */}
 
             {/* Terms Content */}
             <div className="space-y-3">

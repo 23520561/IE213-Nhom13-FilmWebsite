@@ -7,12 +7,11 @@ import {
   ChevronDown,
   X,
   LogIn,
-  Globe,
   Calendar,
   Menu,
 } from "lucide-react";
 import { FilterState } from "../types";
-import { CATEGORIES, COUNTRIES, YEARS } from "../data/movies";
+import { CATEGORIES, YEARS } from "../data/movies";
 import styles from "../styles.module.css";
 
 interface HeaderProps {
@@ -44,7 +43,6 @@ export default function Header({
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
-  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
   const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
 
   // Authentication states
@@ -58,7 +56,6 @@ export default function Header({
   const [searchVal, setSearchVal] = useState(filters.searchQuery);
 
   const categoryRef = useRef<HTMLDivElement>(null);
-  const countryRef = useRef<HTMLDivElement>(null);
   const yearRef = useRef<HTMLDivElement>(null);
 
   // Sync search input after short delay or change
@@ -77,12 +74,6 @@ export default function Header({
         !categoryRef.current.contains(event.target as Node)
       ) {
         setIsCategoryDropdownOpen(false);
-      }
-      if (
-        countryRef.current &&
-        !countryRef.current.contains(event.target as Node)
-      ) {
-        setIsCountryDropdownOpen(false);
       }
       if (yearRef.current && !yearRef.current.contains(event.target as Node)) {
         setIsYearDropdownOpen(false);
@@ -142,11 +133,7 @@ export default function Header({
     onGoHome();
   };
 
-  const selectCountry = (country: string) => {
-    setFilters((prev) => ({ ...prev, country }));
-    setIsCountryDropdownOpen(false);
-    onGoHome();
-  };
+  // country filter removed — reserved for compatibility only
 
   const selectYear = (year: string) => {
     setFilters((prev) => ({ ...prev, year }));
@@ -159,7 +146,6 @@ export default function Header({
     setFilters({
       searchQuery: "",
       category: "Tất Cả",
-      country: "Tất Cả",
       year: "Tất Cả",
     });
     onGoHome();
@@ -168,7 +154,6 @@ export default function Header({
 
   const activeFiltersCount =
     (filters.category !== "Tất Cả" ? 1 : 0) +
-    (filters.country !== "Tất Cả" ? 1 : 0) +
     (filters.year !== "Tất Cả" ? 1 : 0);
 
   return (
@@ -241,40 +226,7 @@ export default function Header({
               )}
             </div>
 
-            {/* Country Dropdown */}
-            <div ref={countryRef} className="relative z-50">
-              <button
-                id="country-dropdown-trigger"
-                onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-md hover:bg-slate-800 text-slate-300 hover:text-white transition-colors text-sm font-medium"
-              >
-                <Globe className="h-4 w-4 text-slate-400" />
-                <span>Quốc Gia</span>
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform duration-200 ${isCountryDropdownOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-              {isCountryDropdownOpen && (
-                <div
-                  id="country-dropdown-menu"
-                  className="absolute left-0 mt-2 w-48 rounded-xl border border-slate-800 bg-slate-900 p-2 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150"
-                >
-                  {COUNTRIES.map((cty) => (
-                    <button
-                      key={cty}
-                      onClick={() => selectCountry(cty)}
-                      className={`block w-full text-left text-xs px-3 py-2 rounded-lg transition-colors truncate ${
-                        filters.country === cty
-                          ? "bg-red-600 text-white font-bold"
-                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
-                    >
-                      {cty}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Country filter removed */}
 
             {/* Year Dropdown */}
             <div ref={yearRef} className="relative z-50">
@@ -456,27 +408,8 @@ export default function Header({
               </div>
             </div>
 
-            {/* Country and Year */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest mb-2">
-                  Lọc theo quốc gia
-                </p>
-                <select
-                  value={filters.country}
-                  onChange={(e) => {
-                    selectCountry(e.target.value);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full text-xs bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-300 outline-none"
-                >
-                  {COUNTRIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {/* Year selection only (country filter removed) */}
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest mb-2">
                   Lọc theo năm

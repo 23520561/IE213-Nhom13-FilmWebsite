@@ -1,8 +1,8 @@
-import React, { memo } from 'react';
-import { Play, Plus, Check } from 'lucide-react';
-import { Movie } from '../types';
-import styles from '../styles.module.css';
-import { getOptimizedImageUrl } from '../utils/image';
+import React, { memo } from "react";
+import { Play, Plus, Check } from "lucide-react";
+import { Movie } from "../types";
+import styles from "../styles.module.css";
+import { getOptimizedImageUrl } from "../utils/image";
 
 interface MovieCardProps {
   movie: Movie;
@@ -17,9 +17,8 @@ function MovieCard({
   isInWatchlist,
   onMovieClick,
   onPlayClick,
-  onToggleWatchlist
+  onToggleWatchlist,
 }: MovieCardProps) {
-
   const handleToggleWatchlist = (e: React.MouseEvent) => {
     e.stopPropagation();
     onToggleWatchlist(movie.id);
@@ -40,7 +39,7 @@ function MovieCard({
       <div className="relative aspect-[2/3] overflow-hidden bg-slate-950">
         <img
           id={`card-poster-${movie.id}`}
-          src={getOptimizedImageUrl(movie.poster, 300)}
+          src={getOptimizedImageUrl(movie.poster || "", 300)}
           alt={movie.title}
           loading="lazy"
           referrerPolicy="no-referrer"
@@ -53,7 +52,7 @@ function MovieCard({
         {/* Special Top tags */}
         <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
           <span className="inline-flex items-center rounded-md bg-slate-900/90 text-[10px] font-bold text-amber-400 px-2 py-0.5 border border-slate-800/80">
-            ⭐ {movie.imdb.toFixed(1)}
+            ⭐ {(movie.imdb || 0).toFixed(1)}
           </span>
           {movie.isNew && (
             <span className="inline-flex items-center rounded-md bg-red-600 text-[9px] font-black tracking-wide text-white px-2 py-0.5 uppercase">
@@ -68,7 +67,11 @@ function MovieCard({
             {movie.quality}
           </span>
           <span className="rounded bg-red-950/90 text-[10px] text-red-400 border border-red-900/60 font-semibold px-1 py-0.5">
-            {movie.language === 'Vietsub' ? 'Sub' : movie.language === 'Thuyết Minh' ? 'T.Minh' : 'L.Tiếng'}
+            {movie.language === "Vietsub"
+              ? "Sub"
+              : movie.language === "Thuyết Minh"
+                ? "T.Minh"
+                : "L.Tiếng"}
           </span>
         </div>
 
@@ -89,13 +92,19 @@ function MovieCard({
             id={`card-quicklist-${movie.id}`}
             onClick={handleToggleWatchlist}
             className={`flex h-10 w-10 items-center justify-center rounded-full border hover:scale-110 active:scale-95 transition-all duration-200 ${
-              isInWatchlist 
-                ? 'bg-slate-900 border-red-500 text-red-500' 
-                : 'bg-slate-900/95 border-slate-700 hover:border-slate-500 text-slate-200'
+              isInWatchlist
+                ? "bg-slate-900 border-red-500 text-red-500"
+                : "bg-slate-900/95 border-slate-700 hover:border-slate-500 text-slate-200"
             }`}
-            title={isInWatchlist ? "Bỏ khỏi danh sách của tôi" : "Thêm vào danh sách"}
+            title={
+              isInWatchlist ? "Bỏ khỏi danh sách của tôi" : "Thêm vào danh sách"
+            }
           >
-            {isInWatchlist ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {isInWatchlist ? (
+              <Check className="h-4 w-4" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
           </button>
         </div>
       </div>
@@ -111,8 +120,14 @@ function MovieCard({
           </p>
         </div>
         <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/60 text-[10px] text-zinc-500">
-          <span>{movie.category}</span>
-          <span className="font-semibold text-slate-400">{movie.year} • {movie.country}</span>
+          <span>
+            {movie.genres && movie.genres.length > 0
+              ? movie.genres
+                  .map((g) => (typeof g === "string" ? g : g.name))
+                  .join(", ")
+              : movie.category}
+          </span>
+          <span className="font-semibold text-slate-400">{movie.year}</span>
         </div>
       </div>
     </div>

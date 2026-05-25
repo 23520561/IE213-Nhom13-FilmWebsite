@@ -13,7 +13,6 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
   // Filter variables
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tất Cả');
-  const [selectedCountry, setSelectedCountry] = useState('Tất Cả');
   const [selectedStatus, setSelectedStatus] = useState('Tất Cả'); // Tất Cả, Hot, Mới
 
   // Modal control triggers
@@ -24,7 +23,8 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
   const [title, setTitle] = useState('');
   const [originalTitle, setOriginalTitle] = useState('');
   const [category, setCategory] = useState('Hành Động');
-  const [country, setCountry] = useState('Mỹ');
+  // genres will be sent to backend; keep category for legacy UI but prefer genres array
+  const [genres, setGenres] = useState<string[]>(['Hành Động']);
   const [year, setYear] = useState(2026);
   const [duration, setDuration] = useState(120);
   const [director, setDirector] = useState('');
@@ -42,7 +42,6 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
     setTitle('Avengers: Ngày Tàn Đại Chiến');
     setOriginalTitle('Avengers: Endgame Part 2');
     setCategory('Hành Động');
-    setCountry('Mỹ');
     setYear(2026);
     setDuration(181);
     setDirector('Anthony Russo, Joe Russo');
@@ -62,7 +61,7 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
     setTitle('');
     setOriginalTitle('');
     setCategory('Hành Động');
-    setCountry('Mỹ');
+    setGenres(['Hành Động']);
     setYear(2026);
     setDuration(120);
     setDirector('');
@@ -82,19 +81,19 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
     setEditingMovie(movie);
     setTitle(movie.title);
     setOriginalTitle(movie.originalTitle || '');
-    setCategory(movie.category);
-    setCountry(movie.country);
-    setYear(movie.year);
-    setDuration(movie.duration);
+    setCategory((movie as any).genres && (movie as any).genres.length > 0 ? ((movie as any).genres[0].name || (movie as any).genres[0]) : movie.category);
+    setGenres((movie as any).genres ? (movie as any).genres.map((g: any) => (g.name || g)) : (movie.category ? [movie.category] : []));
+    setYear(movie.year || 2026);
+    setDuration(movie.duration || 120);
     setDirector(movie.director || '');
     setActors((movie.actors || []).join(', '));
-    setImdb(movie.imdb);
-    setQuality(movie.quality);
-    setLanguage(movie.language);
-    setPoster(movie.poster);
+    setImdb(movie.imdb || 8.0);
+    setQuality(movie.quality || '4K');
+    setLanguage(movie.language || 'Vietsub');
+    setPoster(movie.poster || '');
     setBackdrop(movie.backdrop || '');
     setSynopsis(movie.synopsis || '');
-    setVideoUrl(movie.videoUrl);
+    setVideoUrl(movie.videoUrl || '');
     setIsModalOpen(true);
   };
 
@@ -107,11 +106,21 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
       return;
     }
 
+    const slugify = (s: string) =>
+      s
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-');
+
     const dataPayload = {
       title,
       originalTitle,
+      genres:
+        genres.length > 0
+          ? genres.map((g) => ({ id: `g-${slugify(g)}`, name: g, slug: slugify(g) }))
+          : [{ id: `g-${slugify(category)}`, name: category, slug: slugify(category) }],
       category,
-      country,
       year: Number(year),
       duration: Number(duration),
       director,
@@ -144,8 +153,8 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
                           movie.originalTitle?.toLowerCase().includes(search.toLowerCase()) ||
                           movie.director?.toLowerCase().includes(search.toLowerCase());
     
-    const matchesCategory = selectedCategory === 'Tất Cả' || movie.category === selectedCategory;
-    const matchesCountry = selectedCountry === 'Tất Cả' || movie.country === selectedCountry;
+    const primaryCat = (movie as any).genres && (movie as any).genres.length > 0 ? ((movie as any).genres[0].name || (movie as any).genres[0]) : movie.category;
+    const matchesCategory = selectedCategory === 'Tất Cả' || primaryCat === selectedCategory;
     
     let matchesStatus = true;
     if (selectedStatus === 'Hot') {
@@ -154,12 +163,11 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
       matchesStatus = !!movie.isNew;
     }
 
-    return matchesSearch && matchesCategory && matchesCountry && matchesStatus;
+    return matchesSearch && matchesCategory && matchesStatus;
   });
 
   // Extract unique categories and countries for listing in drop downs
-  const categories = ['Tất Cả', ...Array.from(new Set(movies.map((m) => m.category)))];
-  const countries = ['Tất Cả', ...Array.from(new Set(movies.map((m) => m.country)))];
+  const categories = ['Tất Cả', ...Array.from(new Set(movies.map((m) => ((m as any).genres && (m as any).genres.length > 0) ? ((m as any).genres[0].name || (m as any).genres[0]) : m.category)))];
 
   return (
     <div className="p-8 space-y-6 overflow-y-auto max-h-[calc(100vh-80px)] select-none text-zinc-850 text-left bg-zinc-50/50">
@@ -210,17 +218,7 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
             </select>
           </div>
 
-          {/* Country Dropdown */}
-          <div className="flex items-center space-x-2 bg-zinc-100/60 rounded-xl px-3.5 py-1.5 border border-zinc-200/50">
-            <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider shrink-0">Quốc gia:</span>
-            <select
-              value={selectedCountry}
-              onChange={(e) => setSelectedCountry(e.target.value)}
-              className="bg-transparent text-xs font-bold text-zinc-700 outline-none w-full cursor-pointer"
-            >
-              {countries.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
+          {/* Country filter removed (backend does not provide nation) */}
 
           {/* Status Dropdown */}
           <div className="flex items-center space-x-2 bg-zinc-100/60 rounded-xl px-3.5 py-1.5 border border-zinc-200/50">
@@ -289,9 +287,8 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
                     <td className="px-6 py-4.5">
                       <div className="space-y-0.5">
                         <span className="px-2.5 py-1 bg-zinc-100 text-zinc-700 rounded-lg text-[10px] font-black">
-                          {movie.category}
+                          {(movie as any).genres && (movie as any).genres.length > 0 ? ((movie as any).genres.map((g:any) => (typeof g === 'string' ? g : g.name)).join(', ')) : movie.category}
                         </span>
-                        <span className="text-[9px] text-zinc-400 block font-medium pl-1">{movie.country}</span>
                       </div>
                     </td>
 
@@ -502,21 +499,7 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
                   </select>
                 </div>
 
-                {/* Country values */}
-                <div className="space-y-1.5">
-                  <label className="font-bold text-zinc-700 block">Quốc gia sản xuất</label>
-                  <select
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-blue-550 focus:bg-white text-zinc-800 cursor-pointer text-xs"
-                  >
-                    <option value="Mỹ">Mỹ (Hollywood)</option>
-                    <option value="Nhật Bản">Nhật Bản</option>
-                    <option value="Việt Nam">Việt Nam</option>
-                    <option value="Hàn Quốc">Hàn Quốc</option>
-                    <option value="Trung Quốc">Trung Quốc</option>
-                  </select>
-                </div>
+                {/* Country removed — backend uses genres only */}
 
                 {/* Launch Year */}
                 <div className="space-y-1.5">

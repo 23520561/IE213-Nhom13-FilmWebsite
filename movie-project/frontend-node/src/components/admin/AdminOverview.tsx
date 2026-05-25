@@ -33,10 +33,10 @@ export default function AdminOverview({ movies, onNavigateToMovies, onNavigateTo
     moviesGrowth: `+${Math.min(totalMovies, 5)}%`,
   };
 
-  // Analyze movie categories for Chart
+  // Analyze movie categories for Chart (derive from genres)
   const categoryCounts: Record<string, number> = {};
   movies.forEach(m => {
-    const cat = m.category || 'Khác';
+    const cat = (m as any).genres && (m as any).genres.length > 0 ? ((m as any).genres[0].name || (m as any).genres[0]) : (m.category || 'Khác');
     categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
   });
 
@@ -318,7 +318,7 @@ export default function AdminOverview({ movies, onNavigateToMovies, onNavigateTo
                 <th className="px-6 py-3.5">Ảnh & Tên gốc</th>
                 <th className="px-6 py-3.5">Thể loại</th>
                 <th className="px-6 py-3.5">Định dạng</th>
-                <th className="px-6 py-3.5">Quốc gia</th>
+                {/* Nation column removed (backend does not expose country) */}
                 <th className="px-6 py-3.5">Lượt xem</th>
                 <th className="px-6 py-3.5">Điểm số</th>
               </tr>
@@ -346,9 +346,7 @@ export default function AdminOverview({ movies, onNavigateToMovies, onNavigateTo
                   <td className="px-6 py-3.5">
                     <span className="font-bold text-zinc-800">{movie.quality}</span>
                   </td>
-                  <td className="px-6 py-3.5 font-medium text-zinc-600">
-                    {movie.country}
-                  </td>
+                  {/* country removed */}
                   <td className="px-6 py-3.5 font-black text-zinc-800 font-mono">
                     {movie.views?.toLocaleString()}
                   </td>
