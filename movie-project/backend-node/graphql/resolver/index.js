@@ -32,7 +32,13 @@ const resolvers = {
       return await getUserById(args.id);
     },
     movies: async (parent, args, context) => {
-      return await getMovies(args.page, args.limit, args.genre, args.search);
+      return await getMovies(
+        args.page,
+        args.limit,
+        args.category,
+        args.year,
+        args.searchQuery,
+      );
     },
     movie: async (parent, args, context) => {
       return await getMovieById(args.id);
