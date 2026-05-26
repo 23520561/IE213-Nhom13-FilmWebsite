@@ -79,7 +79,7 @@ export default function HeroSection({
       <div className="absolute inset-0 w-full h-full">
         <img
           id={`hero-backdrop-${currentMovie.id}`}
-          src={getOptimizedImageUrl(currentMovie.backdrop, 1200)}
+          src={getOptimizedImageUrl(currentMovie.backdrop || "", 1200)}
           alt={currentMovie.title}
           referrerPolicy="no-referrer"
           className="w-full h-full object-cover object-center transform scale-100 transition-all duration-1000 ease-out"
@@ -130,7 +130,12 @@ export default function HeroSection({
               <span className="flex items-center space-x-1 font-semibold">
                 <Eye className="h-4 w-4 text-slate-400" />
                 <span>
-                  Lượt xem: {currentMovie.views.toLocaleString("vi-VN")}
+                  Lượt xem:{" "}
+                  {(
+                    (currentMovie as any).viewCount ||
+                    currentMovie.views ||
+                    0
+                  ).toLocaleString("vi-VN")}
                 </span>
               </span>
             </div>
