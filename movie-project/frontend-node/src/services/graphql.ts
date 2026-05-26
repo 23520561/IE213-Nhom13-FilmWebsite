@@ -31,6 +31,7 @@ export async function executeGraphQL<
   query: string,
   variables?: TVariables,
   headers: Record<string, string> = {},
+  signal?: AbortSignal,
 ): Promise<TData> {
   const token = localStorage.getItem("cinemax_auth_token");
 
@@ -51,6 +52,7 @@ export async function executeGraphQL<
         query,
         variables,
       }),
+      signal,
     });
 
     if (!response.ok) {
@@ -135,6 +137,34 @@ export const GET_MOVIES = `
   }
 `;
 
+export const GET_USER_RECOMMENDATIONS = `
+    query GetUserRecommendations($id: ID!, $limit: Int) {
+      user(id: $id) {
+        id
+        recommendations(limit: $limit) {
+          id
+          score
+          movie {
+            id
+            title
+            description
+            poster
+            releaseYear
+            releaseDate
+            movielensId
+            tmdbId
+            backdrop
+            duration
+            viewCount
+            rating { average count }
+            genres { id name slug }
+            videoUrl
+          }
+        }
+      }
+    }
+  `;
+
 export const GET_MOVIE_BY_ID = `
   query GetMovieById($id: ID!) {
     movie(id: $id) {
@@ -174,6 +204,86 @@ export const GET_GENRES = `
       description
       thumbnail
       isActive
+    }
+  }
+`;
+
+export const GET_TRENDING_MOVIES = `
+  query GetTrendingMovies($limit: Int) {
+    trendingMovies(limit: $limit) {
+      id
+      title
+      description
+      poster
+      backdrop
+      duration
+      releaseYear
+      releaseDate
+      viewCount
+      rating { average count }
+      genres { id name slug }
+      videoUrl
+      # server does not expose isTrending/isNew; client will derive these
+    }
+  }
+`;
+
+export const GET_FEATURED_MOVIES = `
+  query GetFeaturedMovies($limit: Int) {
+    featuredMovies(limit: $limit) {
+      id
+      title
+      description
+      poster
+      backdrop
+      duration
+      releaseYear
+      releaseDate
+      viewCount
+      rating { average count }
+      genres { id name slug }
+      videoUrl
+      isFeatured
+      # server does not expose isNew; client will derive if needed
+    }
+  }
+`;
+
+export const GET_TOP_RATED_MOVIES = `
+  query GetTopRatedMovies($limit: Int) {
+    topRatedMovies(limit: $limit) {
+      id
+      title
+      description
+      poster
+      backdrop
+      duration
+      releaseYear
+      releaseDate
+      viewCount
+      rating { average count }
+      genres { id name slug }
+      videoUrl
+      # server does not expose isTrending/isNew; client will derive these
+    }
+  }
+`;
+
+export const GET_TOP_NEW_MOVIES = `
+  query GetTopNewMovies($limit: Int) {
+    topNewMovies(limit: $limit) {
+      id
+      title
+      description
+      poster
+      backdrop
+      duration
+      releaseYear
+      releaseDate
+      viewCount
+      rating { average count }
+      genres { id name slug }
+      videoUrl
     }
   }
 `;
@@ -254,6 +364,33 @@ export const TOGGLE_WATCHLIST = `
   }
 `;
 
+export const CREATE_WATCH_HISTORY = `
+  mutation CreateWatchHistory($movieId: ID!, $watchedTime: Int!, $duration: Int!, $isFinished: Boolean) {
+    createWatchHistory(movieId: $movieId, watchedTime: $watchedTime, duration: $duration, isFinished: $isFinished) {
+      id
+      user { id }
+      movie { id title }
+      watchedTime
+      duration
+      isFinished
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_WATCH_HISTORY = `
+  mutation UpdateWatchHistory($id: ID!, $watchedTime: Int, $duration: Int, $isFinished: Boolean) {
+    updateWatchHistory(id: $id, watchedTime: $watchedTime, duration: $duration, isFinished: $isFinished) {
+      id
+      watchedTime
+      duration
+      isFinished
+      updatedAt
+    }
+  }
+`;
+
 /* ==========================================================
    High-level Type-Safe API Helper Interface Methods
    ========================================================== */
@@ -271,6 +408,80 @@ export async function graphqlGetUserProfile(id: string): Promise<Profile> {
     avatarUrl: (u && u.avatarUrl) || undefined,
     role: u?.role,
   } as Profile;
+}
+
+export async function graphqlGetUserRecommendations(id: string, limit = 8) {
+  interface Response {
+    user: { id: string; recommendations: any[] };
+  }
+
+  try {
+    const data = await executeGraphQL<Response>(GET_USER_RECOMMENDATIONS, {
+      id,
+      limit,
+    });
+    return (data && data.user && data.user.recommendations) || [];
+  } catch (err) {
+    console.error("graphqlGetUserRecommendations failed:", err);
+    return [];
+  }
+}
+
+export async function graphqlGetTrendingMovies(limit = 8) {
+  interface Response {
+    trendingMovies: Movie[];
+  }
+  try {
+    const data = await executeGraphQL<Response>(GET_TRENDING_MOVIES, { limit });
+    return (data && data.trendingMovies) || [];
+  } catch (err) {
+    console.error("graphqlGetTrendingMovies failed:", err);
+    return [];
+  }
+}
+
+export async function graphqlGetFeaturedMovies(limit = 8) {
+  interface Response {
+    featuredMovies: Movie[];
+  }
+  try {
+    const data = await executeGraphQL<Response>(GET_FEATURED_MOVIES, { limit });
+    return (data && data.featuredMovies) || [];
+  } catch (err) {
+    console.error("graphqlGetFeaturedMovies failed:", err);
+    return [];
+  }
+}
+
+export async function graphqlGetTopRatedMovies(limit = 8) {
+  interface Response {
+    topRatedMovies: Movie[];
+  }
+  try {
+    const data = await executeGraphQL<Response>(GET_TOP_RATED_MOVIES, {
+      limit,
+    });
+    return (data && data.topRatedMovies) || [];
+  } catch (err) {
+    console.error("graphqlGetTopRatedMovies failed:", err);
+    return [];
+  }
+}
+
+export async function graphqlGetTopNewMovies(limit = 8) {
+  interface Response {
+    topNewMovies: Movie[];
+  }
+  try {
+    const data = await executeGraphQL<Response>(GET_TOP_NEW_MOVIES, { limit });
+    // debug
+    // eslint-disable-next-line no-console
+    console.debug("[graphql] GET_TOP_NEW_MOVIES response ->", data);
+    return (data && data.topNewMovies) || [];
+  } catch (err) {
+    console.error("graphqlGetTopNewMovies failed:", err);
+    return [];
+  }
 }
 
 export async function graphqlUpdateUserProfile(
@@ -408,16 +619,72 @@ export async function graphqlToggleWatchlist(
     return { success: false, watchlistIds: [] };
   }
 }
-export async function graphqlGetMovieComments(movieId: string) {
+
+export async function graphqlCreateWatchHistory(
+  movieId: string,
+  watchedTime: number,
+  duration: number,
+  isFinished = false,
+) {
+  interface Response {
+    createWatchHistory: any;
+  }
+  try {
+    const data = await executeGraphQL<Response>(CREATE_WATCH_HISTORY, {
+      movieId,
+      watchedTime,
+      duration,
+      isFinished,
+    });
+    return data.createWatchHistory;
+  } catch (err) {
+    console.error("graphqlCreateWatchHistory failed:", err);
+    return null;
+  }
+}
+
+export async function graphqlUpdateWatchHistory(
+  id: string,
+  watchedTime?: number,
+  duration?: number,
+  isFinished?: boolean,
+) {
+  interface Response {
+    updateWatchHistory: any;
+  }
+  try {
+    const data = await executeGraphQL<Response>(UPDATE_WATCH_HISTORY, {
+      id,
+      watchedTime,
+      duration,
+      isFinished,
+    });
+    return data.updateWatchHistory;
+  } catch (err) {
+    console.error("graphqlUpdateWatchHistory failed:", err);
+    return null;
+  }
+}
+export async function graphqlGetMovieComments(
+  movieId: string,
+  signal?: AbortSignal,
+) {
   interface Response {
     comments: any[];
   }
   try {
-    const data = await executeGraphQL<Response>(GET_MOVIE_COMMENTS, {
-      movieId,
-    });
+    const data = await executeGraphQL<Response>(
+      GET_MOVIE_COMMENTS,
+      {
+        movieId,
+      },
+      undefined,
+      signal,
+    );
     return data && data.comments ? data.comments : [];
   } catch (err) {
+    // If aborted, ignore noise
+    if ((err as any)?.name === "AbortError") return [];
     console.error("graphqlGetMovieComments failed:", err);
     return [];
   }

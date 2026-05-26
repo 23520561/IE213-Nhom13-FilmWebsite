@@ -165,6 +165,7 @@ const typeDefs = gql`
       year: String
       searchQuery: String
     ): [Movie]
+    watchHistory(id: ID!): WatchHistory
     movie(id: ID!): Movie
     genres: [Genre!]!
     ratings(movieId: ID!): [Rating!]!
@@ -174,6 +175,7 @@ const typeDefs = gql`
     trendingMovies(limit: Int = 10): [Movie!]!
     featuredMovies(limit: Int = 10): [Movie!]!
     topRatedMovies(limit: Int = 10): [Movie!]!
+    topNewMovies(limit: Int = 10): [Movie!]!
   }
 
   type Mutation {
@@ -206,6 +208,20 @@ const typeDefs = gql`
     createGenre(input: CreateGenreInput!): Genre!
     updateGenre(id: ID!, input: UpdateGenreInput!): Genre!
     deleteGenre(id: ID!): Boolean!
+    # WatchHistory mutations
+    createWatchHistory(
+      movieId: ID!
+      watchedTime: Int!
+      duration: Int!
+      isFinished: Boolean
+    ): WatchHistory!
+    updateWatchHistory(
+      id: ID!
+      watchedTime: Int
+      duration: Int
+      isFinished: Boolean
+    ): WatchHistory!
+    deleteWatchHistory(id: ID!): Boolean!
   }
 `;
 
