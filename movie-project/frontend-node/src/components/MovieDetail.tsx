@@ -13,10 +13,14 @@ import {
   Send,
 } from "lucide-react";
 import { Movie, Comment } from "../types";
-import { MOCK_COMMENTS } from "../data/movies";
+import {
+  graphqlGetMovieComments,
+  graphqlCreateComment,
+} from "../services/graphql";
 import MovieRow from "./MovieRow";
 import styles from "../styles.module.css";
 import { getOptimizedImageUrl } from "../utils/image";
+import userIcon from "../../images/user.svg";
 
 interface MovieDetailProps {
   movie: Movie;
@@ -37,11 +41,31 @@ export default function MovieDetail({
   onMovieClick,
   onShowNotification,
 }: MovieDetailProps) {
-  const [comments, setComments] = useState<Comment[]>(MOCK_COMMENTS);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [newCommentName, setNewCommentName] = useState("");
   const [newCommentContent, setNewCommentContent] = useState("");
-
   const isInWatchlist = watchlistIds.includes(movie.id);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    async function loadComments() {
+      const dbComments = await graphqlGetMovieComments(movie.id);
+
+      // Chuyển đổi dữ liệu từ Backend thành kiểu Comment của Frontend
+      const formattedComments = dbComments.map((c: any) => ({
+        id: c.id,
+        author: c.user?.username || "Người Xem Ẩn Danh",
+        avatar: c.user?.avatar || userIcon,
+        content: c.content,
+        timestamp: new Date(Number(c.createdAt)).toLocaleDateString("vi-VN"),
+        likes: 0,
+      }));
+
+      setComments(formattedComments);
+    }
+    loadComments();
+  }, [movie.id]);
 
   // Filter out the current movie and select movies with matching category for related list
   const relatedMovies = allMovies.filter(
@@ -54,27 +78,49 @@ export default function MovieDetail({
       ? relatedMovies
       : allMovies.filter((m) => m.id !== movie.id).slice(0, 4);
 
-  const handleCommentSubmit = (e: React.FormEvent) => {
+  const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCommentContent.trim()) {
       onShowNotification("Nội dung bình luận không được bỏ trống!");
       return;
     }
 
-    const authorName = newCommentName.trim() || "Người Xem Ẩn Danh";
-    const newComment: Comment = {
-      id: `c-${Date.now()}`,
-      author: authorName,
-      avatar: `https://images.unsplash.com/photo-${1500000000000 + Math.floor(Math.random() * 500000)}?auto=format&fit=crop&q=80&w=100`,
-      content: newCommentContent,
-      timestamp: "Vừa xong",
-      likes: 0,
-    };
+    const token = localStorage.getItem("cinemax_auth_token");
+    if (!token) {
+      onShowNotification("Vui lòng đăng nhập để có thể bình luận!");
+      return;
+    }
 
-    setComments((prev) => [newComment, ...prev]);
-    setNewCommentName("");
-    setNewCommentContent("");
-    onShowNotification("Cảm ơn bình luận của bạn đã được đăng công khai!");
+    setIsSubmitting(true);
+    try {
+      // Gửi Comment mới lên Backend
+      const createdComment = await graphqlCreateComment(
+        movie.id,
+        newCommentContent,
+      );
+
+      // Chuyển đổi format để hiển thị ngay lập tức lên UI (Optimistic UI update)
+      const newComment: Comment = {
+        id: createdComment.id || `c-${Date.now()}`,
+        author:
+          createdComment.user?.username ||
+          newCommentName.trim() ||
+          "Thành viên",
+        avatar: createdComment.user?.avatar || userIcon,
+        content: createdComment.content,
+        timestamp: "Vừa xong",
+        likes: 0,
+      };
+
+      setComments((prev) => [newComment, ...prev]);
+      setNewCommentName("");
+      setNewCommentContent("");
+      onShowNotification("Bình luận của bạn đã được đăng thành công!");
+    } catch (error: any) {
+      onShowNotification(error.message || "Có lỗi xảy ra khi đăng bình luận.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleLikeComment = (commentId: string) => {
@@ -94,7 +140,7 @@ export default function MovieDetail({
       {/* Cinematic Blur Backdrop Banner overlay */}
       <div className="absolute top-0 left-0 right-0 h-[26rem] md:h-[35rem] overflow-hidden -mt-8 md:-mt-12 select-none -z-10">
         <img
-          src={getOptimizedImageUrl(movie.backdrop || '', 600)}
+          src={getOptimizedImageUrl(movie.backdrop || "", 600)}
           alt={movie.title}
           referrerPolicy="no-referrer"
           className="w-full h-full object-cover filter blur-md opacity-25 scale-110"
@@ -108,7 +154,7 @@ export default function MovieDetail({
         <div className="md:col-span-4 flex flex-col items-center">
           <div className="relative w-64 sm:w-72 md:w-full aspect-[2/3] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-900 group">
             <img
-              src={getOptimizedImageUrl(movie.poster || '', 400)}
+              src={getOptimizedImageUrl(movie.poster || "", 400)}
               alt={movie.title}
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover"
@@ -131,7 +177,11 @@ export default function MovieDetail({
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded bg-red-950 text-red-400 border border-red-900 px-2.5 py-0.5 text-xs font-black uppercase">
-                {(movie.genres && movie.genres.length > 0) ? (movie.genres.map(g => (typeof g === 'string' ? g : g.name)).join(', ')) : movie.category}
+                {movie.genres && movie.genres.length > 0
+                  ? movie.genres
+                      .map((g) => (typeof g === "string" ? g : g.name))
+                      .join(", ")
+                  : movie.category}
               </span>
             </div>
 
