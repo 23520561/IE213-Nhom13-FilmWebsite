@@ -19,6 +19,9 @@ import {
   graphqlGetTopNewMovies,
   graphqlCreateWatchHistory,
   graphqlUpdateWatchHistory,
+  graphqlGetAllComments,
+  graphqlDeleteComment,
+  graphqlUpdateUserStatus,
 } from "./services/graphql";
 import {
   Bookmark,
@@ -44,6 +47,9 @@ const AdminSidebar = React.lazy(
 const AdminTopbar = React.lazy(() => import("./components/admin/AdminTopbar"));
 const AdminMovies = React.lazy(() => import("./components/admin/AdminMovies"));
 const AdminUsers = React.lazy(() => import("./components/admin/AdminUsers"));
+const AdminModeration = React.lazy(
+  () => import("./components/admin/AdminModeration"),
+);
 
 interface AdminDashboardProps {
   movies: Movie[];
@@ -59,8 +65,11 @@ function AdminDashboard({
   currentUser,
 }: AdminDashboardProps) {
   // Thay đổi tab mặc định ban đầu là quản lý phim 'movies' thay vì 'overview'
-  const [adminTab, setAdminTab] = useState<"movies" | "users">("movies");
+  const [adminTab, setAdminTab] = useState<"movies" | "users" | "moderation">(
+    "movies",
+  );
   const [users, setUsers] = useState<any[]>([]); // Khởi tạo state lưu danh sách users từ DB
+  const [comments, setComments] = useState<any[]>([]); // State lưu danh sách comment cho moderation
   const navigate = useNavigate();
 
   // Khóa bảo mật điều hướng
@@ -78,6 +87,22 @@ function AdminDashboard({
     };
     fetchUsers();
   }, [currentUser, navigate, showNotification]);
+
+  useEffect(() => {
+    if (adminTab === "moderation") {
+      const fetchComments = async () => {
+        try {
+          const dbComments = await graphqlGetAllComments();
+          setComments(dbComments);
+        } catch (error) {
+          showNotification(
+            "Chưa thể tải danh sách bình luận (Kiểm tra lại Backend Resolver)",
+          );
+        }
+      };
+      fetchComments();
+    }
+  }, [adminTab]);
 
   if (!currentUser || currentUser.role !== "admin") {
     return null;
@@ -120,6 +145,34 @@ function AdminDashboard({
     }
   };
 
+  const handleToggleUserStatus = async (
+    userId: string,
+    currentStatus: boolean,
+  ) => {
+    try {
+      const newStatus = !currentStatus;
+      await graphqlUpdateUserStatus(userId, newStatus);
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, isActive: newStatus } : u)),
+      );
+      showNotification(
+        newStatus ? "Đã MỞ KHÓA tài khoản!" : "Đã KHÓA tài khoản thành công!",
+      );
+    } catch (error: any) {
+      showNotification(error.message || "Lỗi khi cập nhật trạng thái.");
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      await graphqlDeleteComment(commentId);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      showNotification("Đã xóa bình luận vi phạm!");
+    } catch (error: any) {
+      showNotification(error.message || "Lỗi khi xóa bình luận.");
+    }
+  };
+
   return (
     <div className="flex bg-[#0f172a] text-slate-100 min-h-screen font-sans overflow-hidden text-left fixed inset-0 z-50">
       <AdminSidebar
@@ -136,21 +189,38 @@ function AdminDashboard({
           currentTabName={
             adminTab === "movies"
               ? "Quản lý kho phim"
-              : "Danh sách người dùng đăng ký"
+              : adminTab === "users"
+                ? "Danh sách người dùng đăng ký"
+                : "Hệ thống kiểm duyệt nội dung"
           }
           currentUser={currentUser}
         />
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 font-sans">
-          {adminTab === "movies" ? (
+          {/* Render theo Tab */}
+          {adminTab === "movies" && (
             <AdminMovies
               movies={movies}
               onAddMovie={handleAddMovie}
               onEditMovie={handleEditMovie}
               onDeleteMovie={handleDeleteMovie}
             />
-          ) : (
-            <AdminUsers users={users} /> // Truyền danh sách user thật xuống
+          )}
+
+          {adminTab === "users" && (
+            <AdminUsers
+              users={users}
+              onToggleUserStatus={handleToggleUserStatus}
+            />
+          )}
+
+          {adminTab === "moderation" && (
+            <React.Suspense fallback={<div>Đang tải...</div>}>
+              <AdminModeration
+                comments={comments}
+                onDeleteComment={handleDeleteComment}
+              />
+            </React.Suspense>
           )}
         </main>
       </div>
@@ -240,9 +310,19 @@ export default function App() {
             // If already mapped, try update, else create
             if (idMap[e.movieId]) {
               // update via API if possible
-              await graphqlUpdateWatchHistory(idMap[e.movieId], e.watchedTime, e.duration, e.isFinished);
+              await graphqlUpdateWatchHistory(
+                idMap[e.movieId],
+                e.watchedTime,
+                e.duration,
+                e.isFinished,
+              );
             } else {
-              const res = await graphqlCreateWatchHistory(e.movieId, e.watchedTime || 0, e.duration || 0, !!e.isFinished);
+              const res = await graphqlCreateWatchHistory(
+                e.movieId,
+                e.watchedTime || 0,
+                e.duration || 0,
+                !!e.isFinished,
+              );
               if (res && res.id) {
                 idMap[e.movieId] = res.id;
               }
@@ -708,16 +788,21 @@ export default function App() {
         sectionNewMovies.find((m) => m.id === movieId) ||
         sectionActionMovies.find((m) => m.id === movieId) ||
         sectionTheaterHotMovies.find((m) => m.id === movieId);
-      const duration = (m && (m.duration || m.duration === 0) ? Number(m.duration) : 0) || 0;
+      const duration =
+        (m && (m.duration || m.duration === 0) ? Number(m.duration) : 0) || 0;
       // fire-and-forget
       graphqlCreateWatchHistory(movieId, 0, duration, false)
         .then((res) => {
           try {
             if (res && res.id) {
-              const mapRaw = localStorage.getItem("cinemax_watchhistory_map") || "{}";
+              const mapRaw =
+                localStorage.getItem("cinemax_watchhistory_map") || "{}";
               const idMap = JSON.parse(mapRaw || "{}");
               idMap[movieId] = res.id;
-              localStorage.setItem("cinemax_watchhistory_map", JSON.stringify(idMap));
+              localStorage.setItem(
+                "cinemax_watchhistory_map",
+                JSON.stringify(idMap),
+              );
             }
           } catch (e) {
             /* ignore */
@@ -726,10 +811,14 @@ export default function App() {
         .catch(() => {
           // Save pending local entry to be synced on login
           try {
-            const raw = localStorage.getItem("cinemax_local_watchhistory") || "[]";
+            const raw =
+              localStorage.getItem("cinemax_local_watchhistory") || "[]";
             const arr = JSON.parse(raw || "[]");
             arr.push({ movieId, watchedTime: 0, duration, isFinished: false });
-            localStorage.setItem("cinemax_local_watchhistory", JSON.stringify(arr));
+            localStorage.setItem(
+              "cinemax_local_watchhistory",
+              JSON.stringify(arr),
+            );
           } catch (e) {
             /* ignore */
           }

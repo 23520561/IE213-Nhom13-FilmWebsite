@@ -62,6 +62,13 @@ const resolvers = {
     comments: async (parent, args, context) => {
       return await models.Comment.find({ movie: args.movieId });
     },
+    allComments: async (parent, args, context) => {
+      // 1. Bảo mật: Yêu cầu quyền Admin mới được lấy toàn bộ dữ liệu bình luận của hệ thống
+      requireAdmin(context);
+
+      // 2. Lấy tất cả bình luận và sắp xếp theo thời gian mới nhất lên đầu (createdAt: -1)
+      return await models.Comment.find().sort({ createdAt: -1 });
+    },
     trendingMovies: async (parent, args, context) => {
       return await models.Movie.find()
         .sort({ viewCount: -1 })

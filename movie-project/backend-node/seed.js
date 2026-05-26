@@ -410,7 +410,7 @@ async function seedTagsAsComments(users, movies) {
       // Chọn ngẫu nhiên 1 User trong Database làm tác giả của bình luận này
       const randomUser = users[Math.floor(Math.random() * users.length)];
 
-      const content = `Gắn thẻ đánh giá: "${tagContent}"`;
+      const content = `"${tagContent}"`;
 
       const existingComment = await Comment.findOne({
         user: randomUser._id,
