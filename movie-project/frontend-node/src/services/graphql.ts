@@ -756,3 +756,48 @@ export async function graphqlGetAllUsers() {
     return [];
   }
 }
+
+// Cập nhật trạng thái người dùng (Ban / Unban) thông qua updateUser có sẵn
+export async function graphqlUpdateUserStatus(
+  userId: string,
+  isActive: boolean,
+) {
+  const query = `
+    mutation UpdateUserStatus($id: ID!, $input: UpdateUserInput!) {
+      updateUser(id: $id, input: $input) {
+        id
+        isActive
+      }
+    }
+  `;
+  const data = await executeGraphQL(query, { id: userId, input: { isActive } });
+  return data.updateUser;
+}
+
+// Lấy toàn bộ bình luận cho trang Moderation
+export async function graphqlGetAllComments() {
+  const query = `
+    query GetAllComments {
+      allComments {
+        id
+        content
+        createdAt
+        user { username }
+        movie { title }
+      }
+    }
+  `;
+  const data = await executeGraphQL(query);
+  return data.allComments || [];
+}
+
+// Xóa bình luận
+export async function graphqlDeleteComment(commentId: string) {
+  const query = `
+    mutation DeleteComment($commentId: ID!) {
+      deleteComment(commentId: $commentId)
+    }
+  `;
+  const data = await executeGraphQL(query, { commentId });
+  return data.deleteComment;
+}

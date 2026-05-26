@@ -10,8 +10,8 @@ import {
 } from "lucide-react";
 
 interface SidebarProps {
-  activeTab: "movies" | "users";
-  setActiveTab: (tab: "movies" | "users") => void;
+  activeTab: "movies" | "users" | "moderation";
+  setActiveTab: (tab: "movies" | "users" | "moderation") => void;
   onExitAdmin: () => void;
 }
 
@@ -23,6 +23,7 @@ export default function AdminSidebar({
   const menuItems = [
     { id: "movies", name: "Quản lý kho phim", icon: Film },
     { id: "users", name: "Quản lý người dùng", icon: Users },
+    { id: "moderation", name: "Kiểm duyệt nội dung", icon: ShieldAlert },
   ];
 
   return (
