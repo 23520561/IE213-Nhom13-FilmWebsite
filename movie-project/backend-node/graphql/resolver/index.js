@@ -5,6 +5,9 @@ import {
   getUserById,
   getMovieById,
   getRatingsByMovieId,
+  createMovie as createMovieService,
+  updateMovie as updateMovieService,
+  deleteMovie as deleteMovieService,
 } from "../services/index.js";
 import { getSimilarMovies, recommendMovies } from "../../proto/grpcClient.js";
 import { hashPassword, comparePassword } from "../../utils/hashPassword.js";
@@ -190,8 +193,24 @@ const resolvers = {
         throw new Error("At least one genre is required");
       }
 
-      // Create movie
-      const movie = await models.Movie.create({
+      const genreObjectIds = [];
+      if (input.genres && input.genres.length > 0) {
+        for (const genreName of input.genres) {
+          // Tìm document thể loại khớp với tên
+          const genreDoc = await models.Genre.findOne({ name: genreName });
+          if (genreDoc) {
+            genreObjectIds.push(genreDoc._id);
+          } else {
+            // Nếu không tìm thấy, có thể tạo mới hoặc bỏ qua. Tạm thời ném lỗi để kiểm soát:
+            throw new Error(
+              `Không tìm thấy thể loại "${genreName}" trong Database.`,
+            );
+          }
+        }
+      }
+
+      // 1. Chuẩn bị dữ liệu an toàn
+      const movieData = {
         movielensId: Date.now().toString(),
         tmdbId: 0,
         title: input.title,
@@ -200,14 +219,17 @@ const resolvers = {
         releaseYear: input.releaseDate
           ? new Date(input.releaseDate).getFullYear()
           : new Date().getFullYear(),
-        genres: input.genres,
+        genres: genreObjectIds,
         duration: input.duration || 0,
         videoUrl: input.videoUrl || null,
         poster: input.poster || null,
         backdrop: input.backdrop || null,
         trailer: input.trailer || null,
         isPremium: input.isPremium || false,
-      });
+      };
+
+      // 2. Giao việc lưu DB cho tầng Service xử lý
+      const movie = await createMovieService(movieData);
 
       logMutation("createMovie", context.user.userId, movie._id);
       return movie;
@@ -217,15 +239,36 @@ const resolvers = {
       requireAdmin(context);
       const { id, input } = args;
 
-      // Find and update movie
-      const movie = await models.Movie.findByIdAndUpdate(id, input, {
-        new: true,
-        runValidators: true,
-      });
+      // 1. Tạo một bản sao của dữ liệu input để chuẩn hóa dữ liệu an toàn
+      const updateData = { ...input };
 
-      if (!movie) {
-        throw new Error("Movie not found");
+      if (input.genres && input.genres.length > 0) {
+        const genreObjectIds = [];
+
+        for (const genreName of input.genres) {
+          // Tìm document thể loại trong bảng Genre khớp với tên nhận từ Frontend
+          const genreDoc = await models.Genre.findOne({ name: genreName });
+          if (genreDoc) {
+            genreObjectIds.push(genreDoc._id);
+          } else {
+            throw new Error(
+              `Không tìm thấy thể loại "${genreName}" trong hệ thống.`,
+            );
+          }
+        }
+
+        // Ghi đè mảng ObjectId đã chuyển đổi vào trường genres để gửi xuống DB
+        updateData.genres = genreObjectIds;
       }
+      // =========================================================================
+
+      // 2. Tự động cập nhật lại năm phát hành (releaseYear) nếu Admin sửa ngày phát hành (releaseDate)
+      if (input.releaseDate) {
+        updateData.releaseYear = new Date(input.releaseDate).getFullYear();
+      }
+
+      // 3. Giao việc cập nhật dữ liệu MongoDB cho tầng Service xử lý
+      const movie = await updateMovieService(id, updateData);
 
       logMutation("updateMovie", context.user.userId, movie._id);
       return movie;
@@ -235,10 +278,8 @@ const resolvers = {
       requireAdmin(context);
       const { id } = args;
 
-      const movie = await models.Movie.findByIdAndDelete(id);
-      if (!movie) {
-        throw new Error("Movie not found");
-      }
+      // Giao việc xóa cho Service
+      await deleteMovieService(id);
 
       logMutation("deleteMovie", context.user.userId, id);
       return true;
