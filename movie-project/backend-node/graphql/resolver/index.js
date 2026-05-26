@@ -75,6 +75,14 @@ const resolvers = {
         .sort({ "rating.average": -1 })
         .limit(args.limit);
     },
+    topNewMovies: async (parent, args, context) => {
+      return await models.Movie.find()
+        .sort({ releaseYear: -1 })
+        .limit(args.limit);
+    },
+    watchHistory: async (parent, args, context) => {
+      return await models.WatchHistory.findById(args.id);
+    },
   },
 
   Mutation: {
@@ -562,6 +570,46 @@ const resolvers = {
       logMutation("deleteGenre", context.user.userId, id);
       return true;
     },
+    // WatchHistory mutations
+    createWatchHistory: async (parent, args, context) => {
+      requireAuth(context);
+      const { movieId, watchedTime, duration, isFinished } = args;
+      // Upsert per-user per-movie record
+      const doc = await models.WatchHistory.findOneAndUpdate(
+        { user: context.user.userId, movie: movieId },
+        {
+          $set: {
+            watchedTime: watchedTime || 0,
+            duration: duration || 0,
+            isFinished: !!isFinished,
+          },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      );
+      return doc;
+    },
+    updateWatchHistory: async (parent, args, context) => {
+      requireAuth(context);
+      const { id, watchedTime, duration, isFinished } = args;
+      const doc = await models.WatchHistory.findById(id);
+      if (!doc) throw new Error("WatchHistory not found");
+      // Only owner or admin can update
+      requireOwnerOrAdmin(context, doc.user.toString());
+      if (watchedTime !== undefined) doc.watchedTime = watchedTime;
+      if (duration !== undefined) doc.duration = duration;
+      if (isFinished !== undefined) doc.isFinished = isFinished;
+      await doc.save();
+      return doc;
+    },
+    deleteWatchHistory: async (parent, args, context) => {
+      requireAuth(context);
+      const { id } = args;
+      const doc = await models.WatchHistory.findById(id);
+      if (!doc) throw new Error("WatchHistory not found");
+      requireOwnerOrAdmin(context, doc.user.toString());
+      await models.WatchHistory.findByIdAndDelete(id);
+      return true;
+    },
   },
 
   Movie: {
@@ -584,23 +632,46 @@ const resolvers = {
   User: {
     recommendations: async (parent, args, context) => {
       try {
-        let watchedMovies = await models.WatchHistory.find({ user: parent.id })
+        // Load recent watch history and populate movie movielensId
+        let watchedEntries = await models.WatchHistory.find({ user: parent.id })
           .select("movie")
           .sort({ updatedAt: -1 })
-          .limit(10);
-        const watchedMovieIds = watchedMovies.map((wm) => wm.movie);
-        if (watchedMovieIds.length === 0)
-          return trendingMovies(parent, { limit: args.limit }, context);
+          .limit(10)
+          .populate({ path: "movie", select: "movielensId" });
+
+        // Extract populated movie documents (may be null if reference broken)
+        const watchedMovieDocs = watchedEntries
+          .map((we) => we.movie)
+          .filter(Boolean);
+
+        // If no watched movies, return a trending fallback shaped like recommendations
+        if (watchedMovieDocs.length === 0) {
+          console.log(
+            "No watch history found for user, returning trending movies as fallback",
+          );
+          const trending = await models.Movie.find()
+            .sort({ viewCount: -1 })
+            .limit(args.limit || 8);
+          return trending.map((m) => ({
+            id: m.movielensId || String(m._id),
+            score: null,
+            movie: m,
+          }));
+        }
+
+        // Choose a seed movielensId from the most-recent watched movie
+        const seedMovielensId =
+          watchedMovieDocs[0].movielensId || String(watchedMovieDocs[0]._id);
 
         const recommendations = await recommendMovies(
           parent.numerical_id,
           args.limit,
-          watchedMovieIds[0], // Lấy movieId gần nhất nếu có
+          seedMovielensId,
           0.6, // alpha mặc định
-          watchedMovieIds.length, // totalWatched
+          watchedMovieDocs.length, // totalWatched
         );
 
-        const movieIds = recommendations.map((rec) => rec.movie_id);
+        const movieIds = (recommendations || []).map((rec) => rec.movie_id);
         const movies = await models.Movie.find({
           movielensId: { $in: movieIds },
         });
@@ -608,14 +679,15 @@ const resolvers = {
           movies.map((movie) => [movie.movielensId, movie]),
         );
 
-        return recommendations
+        return (recommendations || [])
           .filter((rec) => movieMap.has(rec.movie_id))
           .map((rec) => ({
             id: rec.movie_id,
-            score: null,
+            score: rec.score ?? null,
             movie: movieMap.get(rec.movie_id),
           }));
       } catch (error) {
+        logError && logError("recommendations", error);
         return [];
       }
     },
@@ -630,6 +702,14 @@ const resolvers = {
     },
   },
   Comment: {
+    user: async (parent, args, context) => {
+      return await context.loaders.userLoader.load(parent.user);
+    },
+    movie: async (parent, args, context) => {
+      return await context.loaders.movieLoader.load(parent.movie);
+    },
+  },
+  WatchHistory: {
     user: async (parent, args, context) => {
       return await context.loaders.userLoader.load(parent.user);
     },
