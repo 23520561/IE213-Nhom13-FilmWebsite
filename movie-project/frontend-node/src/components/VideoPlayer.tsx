@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { graphqlCreateWatchHistory, graphqlUpdateWatchHistory } from "../services/graphql";
 import {
   Play,
   Pause,
@@ -162,6 +163,53 @@ export default function VideoPlayer({
   const isYouTubeLink =
     movie.videoUrl?.includes("youtube.com") ||
     movie.videoUrl?.includes("youtu.be");
+
+  // When HTML5 video ends, mark watch history as finished (try server, fall back to local)
+  useEffect(() => {
+    const node = videoRef.current;
+    if (!node || isYouTubeLink) return;
+
+    const onEnded = async () => {
+      setIsPlaying(false);
+      const movieId = movie.id;
+      const duration = movie.duration || 0;
+      try {
+        const mapRaw = localStorage.getItem("cinemax_watchhistory_map") || "{}";
+        const idMap = JSON.parse(mapRaw || "{}");
+        if (idMap[movieId]) {
+          // update existing record
+          try {
+            await graphqlUpdateWatchHistory(idMap[movieId], duration, duration, true);
+          } catch (err) {
+            // save locally for later sync
+            const raw = localStorage.getItem("cinemax_local_watchhistory") || "[]";
+            const arr = JSON.parse(raw || "[]");
+            arr.push({ movieId, watchedTime: duration, duration, isFinished: true });
+            localStorage.setItem("cinemax_local_watchhistory", JSON.stringify(arr));
+          }
+        } else {
+          // try create
+          try {
+            const res = await graphqlCreateWatchHistory(movieId, duration, duration, true);
+            if (res && res.id) {
+              idMap[movieId] = res.id;
+              localStorage.setItem("cinemax_watchhistory_map", JSON.stringify(idMap));
+            }
+          } catch (err) {
+            const raw = localStorage.getItem("cinemax_local_watchhistory") || "[]";
+            const arr = JSON.parse(raw || "[]");
+            arr.push({ movieId, watchedTime: duration, duration, isFinished: true });
+            localStorage.setItem("cinemax_local_watchhistory", JSON.stringify(arr));
+          }
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    };
+
+    node.addEventListener("ended", onEnded);
+    return () => node.removeEventListener("ended", onEnded);
+  }, [movie, isYouTubeLink]);
 
   return (
     <div id="video-player-root" className="relative space-y-6">

@@ -32,8 +32,8 @@ const getMovies = async (page = 1, limit = 50, category, year, searchQuery) => {
         // Lọc các phim có chứa ID của thể loại này trong mảng genres
         dbQuery.genres = genreDoc._id;
       } else {
-        // Nếu thể loại này không tồn tại trong DB, ép query trả về rỗng luôn
-        dbQuery._id = null;
+        // Nếu thể loại này không tồn tại trong DB, trả về mảng rỗng ngay
+        return [];
       }
     }
 

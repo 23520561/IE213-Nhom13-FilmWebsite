@@ -7,10 +7,10 @@ import { Movie, FilterState } from "../types";
 
 interface HomeViewProps {
   movies: Movie[];
+  recommendedMovies?: Movie[];
   watchlistMovies: Movie[];
   watchlistIds: string[];
   newMovies: Movie[];
-  topTrendingMovies: Movie[];
   theaterHotMovies: Movie[];
   actionMovies: Movie[];
   hasActiveFilters: boolean;
@@ -28,10 +28,10 @@ interface HomeViewProps {
 
 export default function HomeView({
   movies,
+  recommendedMovies = [],
   watchlistMovies,
   watchlistIds,
   newMovies,
-  topTrendingMovies,
   theaterHotMovies,
   actionMovies,
   hasActiveFilters,
@@ -202,24 +202,26 @@ export default function HomeView({
           )}
 
           {/* Phim Mới Cập Nhật */}
+          {/* Recommended for you */}
+          {recommendedMovies && recommendedMovies.length > 0 && (
+            <section id="recommended-section">
+              <MovieRow
+                title="Phim Dành Cho Bạn"
+                subtitle="Gợi ý cá nhân dựa trên lịch sử xem và sở thích của bạn"
+                movies={recommendedMovies}
+                watchlistIds={watchlistIds}
+                onMovieClick={handleMovieClick}
+                onPlayClick={handlePlayClick}
+                onToggleWatchlist={handleToggleWatchlist}
+              />
+            </section>
+          )}
+
           <section id="new-movies-section">
             <MovieRow
               title="Phim Mới Cập Nhật"
               subtitle="Phim lẻ chiếu rạp, bom tấn chất lượng 4K cực nét vừa lên sóng"
               movies={newMovies}
-              watchlistIds={watchlistIds}
-              onMovieClick={handleMovieClick}
-              onPlayClick={handlePlayClick}
-              onToggleWatchlist={handleToggleWatchlist}
-            />
-          </section>
-
-          {/* Top Trending Section */}
-          <section id="trending-movies-section">
-            <MovieRow
-              title="Phim Lẻ Đang Thịnh Hành"
-              subtitle="Đứng đầu lượt tìm kiếm và thảo luận của cộng đồng tuần qua"
-              movies={topTrendingMovies}
               watchlistIds={watchlistIds}
               onMovieClick={handleMovieClick}
               onPlayClick={handlePlayClick}

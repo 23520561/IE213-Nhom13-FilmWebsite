@@ -48,24 +48,65 @@ export default function MovieDetail({
   const isInWatchlist = watchlistIds.includes(movie.id);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const commentsListRef = React.useRef<HTMLDivElement | null>(null);
+  const suppressCommentsRef = React.useRef(false);
+  const pendingLikesRef = React.useRef<Set<string>>(new Set());
 
   React.useEffect(() => {
+    const controller = new AbortController();
+    const signal = controller.signal;
+    let mounted = true;
+
     async function loadComments() {
-      const dbComments = await graphqlGetMovieComments(movie.id);
+      try {
+        const dbComments = await graphqlGetMovieComments(movie.id, signal);
+        if (!mounted) return;
 
-      // Chuyển đổi dữ liệu từ Backend thành kiểu Comment của Frontend
-      const formattedComments = dbComments.map((c: any) => ({
-        id: c.id,
-        author: c.user?.username || "Người Xem Ẩn Danh",
-        avatar: c.user?.avatar || userIcon,
-        content: c.content,
-        timestamp: new Date(Number(c.createdAt)).toLocaleDateString("vi-VN"),
-        likes: c.likeCount || 0,
-      }));
+        // Chuyển đổi dữ liệu từ Backend thành kiểu Comment của Frontend
+        const formattedComments = dbComments.map((c: any) => ({
+          id: c.id,
+          author: c.user?.username || "Người Xem Ẩn Danh",
+          avatar: c.user?.avatar || userIcon,
+          content: c.content,
+          timestamp: new Date(Number(c.createdAt)).toLocaleDateString("vi-VN"),
+          likes: c.likeCount || 0,
+        }));
 
-      setComments(formattedComments);
+        // Avoid unnecessary state updates if comments are unchanged
+        setComments((prev) => {
+          try {
+            if (!prev || prev.length !== formattedComments.length)
+              return formattedComments;
+            for (let i = 0; i < formattedComments.length; i++) {
+              const a = prev[i];
+              const b = formattedComments[i];
+              if (
+                a.id !== b.id ||
+                (a.likes || 0) !== (b.likes || 0) ||
+                a.content !== b.content
+              ) {
+                return formattedComments;
+              }
+            }
+            return prev; // no changes
+          } catch (err) {
+            return formattedComments;
+          }
+        });
+      } catch (err: any) {
+        if (err?.name === "AbortError") return; // expected when aborting
+        if (mounted) console.error("Failed loading comments:", err);
+      }
     }
-    loadComments();
+
+    // If suppression flag is set (recent local update), skip this fetch
+    if (!suppressCommentsRef.current) {
+      loadComments();
+    }
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
   }, [movie.id]);
 
   // Filter out the current movie and select movies with matching category for related list
@@ -135,21 +176,61 @@ export default function MovieDetail({
     e.preventDefault();
     e.stopPropagation();
 
-    // Optimistic UI: update immediately
-    setComments((prev) => prev.map((c) => (c.id === commentId ? { ...c, likes: (c.likes || 0) + 1 } : c)));
+    // Preserve scroll position to avoid visual jump when re-rendering
+    const scrollContainer = commentsListRef.current;
+    const prevScroll = scrollContainer ? scrollContainer.scrollTop : 0;
+
+    // Prevent immediate refetches triggered elsewhere
+    suppressCommentsRef.current = true;
+    const suppressTimer = window.setTimeout(() => {
+      suppressCommentsRef.current = false;
+    }, 1500);
+
+    // Prevent duplicate like requests for same comment
+    if (pendingLikesRef.current.has(commentId)) return;
+    pendingLikesRef.current.add(commentId);
+
+    // Optimistic UI: update immediately (preserve order)
+    setComments((prev) =>
+      prev.map((c) => (c.id === commentId ? { ...c, likes: (c.likes || 0) + 1 } : c)),
+    );
 
     // Send like to backend; update UI with authoritative likeCount when response arrives
     (async () => {
       try {
         const updated = await graphqlLikeComment(commentId);
         // update the corresponding comment's likes with backend's likeCount
-        setComments((prev) => prev.map((c) => (c.id === updated.id ? { ...c, likes: updated.likeCount || (c.likes || 0) } : c)));
+        setComments((prev) =>
+          prev.map((c) =>
+            c.id === updated.id
+              ? { ...c, likes: updated.likeCount ?? (c.likes || 0) }
+              : c,
+          ),
+        );
+
+        // restore scroll position after DOM updates
+        setTimeout(() => {
+          if (scrollContainer) scrollContainer.scrollTop = prevScroll;
+        }, 30);
+
+        onShowNotification("Đã thích bình luận!");
       } catch (err: any) {
         console.error("Like failed:", err);
+        // revert optimistic update on failure
+        setComments((prev) =>
+          prev.map((c) =>
+            c.id === commentId
+              ? { ...c, likes: Math.max((c.likes || 1) - 1, 0) }
+              : c,
+          ),
+        );
         onShowNotification(err?.message || "Không thể thích bình luận");
+      } finally {
+        pendingLikesRef.current.delete(commentId);
+        clearTimeout(suppressTimer);
+        suppressCommentsRef.current = false;
       }
     })();
-    onShowNotification("Đã thích bình luận!");
   };
 
   return (
@@ -351,7 +432,10 @@ export default function MovieDetail({
             ({comments.length}) Đánh giá thảo luận
           </h3>
 
-          <div className="space-y-3 max-h-[30rem] overflow-y-auto pr-2 customScrollbar">
+          <div
+            ref={commentsListRef}
+            className="space-y-3 max-h-[30rem] overflow-y-auto pr-2 customScrollbar"
+          >
             {comments.map((comment) => (
               <div
                 key={comment.id}
