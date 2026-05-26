@@ -59,6 +59,7 @@ export default function Header({
   const yearRef = useRef<HTMLDivElement>(null);
 
   // Sync search input after short delay or change
+
   useEffect(() => {
     const handler = setTimeout(() => {
       setFilters((prev) => ({ ...prev, searchQuery: searchVal }));
@@ -141,7 +142,7 @@ export default function Header({
     onGoHome();
   };
 
-  const clearAllFilters = () => {
+  const clearAllFilters = (silent: boolean = false) => {
     setSearchVal("");
     setFilters({
       searchQuery: "",
@@ -149,7 +150,9 @@ export default function Header({
       year: "Tất Cả",
     });
     onGoHome();
-    onShowNotification("Đã đặt lại các bộ lọc phim.");
+    if (!silent) {
+      onShowNotification("Đã đặt lại các bộ lọc phim.");
+    }
   };
 
   const activeFiltersCount =
@@ -167,8 +170,7 @@ export default function Header({
           <div
             id="header-logo-container"
             onClick={() => {
-              clearAllFilters();
-              onGoHome();
+              clearAllFilters(true);
             }}
             className="flex cursor-pointer items-center space-x-2 group"
           >
@@ -288,6 +290,15 @@ export default function Header({
                 placeholder="Tìm phim, đạo diễn, diễn viên..."
                 value={searchVal}
                 onChange={(e) => setSearchVal(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setFilters((prev) => ({ ...prev, searchQuery: searchVal }));
+                    onGoHome(); // Cưỡng chế quay về trang chủ để xem kết quả lọc
+                    onShowNotification(
+                      `Đang tìm kiếm dữ liệu cho: "${searchVal}"`,
+                    );
+                  }
+                }}
                 className="w-40 sm:w-60 rounded-full border border-slate-800 bg-slate-950/80 hover:bg-slate-950 hover:border-slate-700 focus:border-red-500 focus:bg-slate-950 focus:ring-1 focus:ring-red-500 text-xs text-white py-2.5 pl-9 pr-4 outline-none transition-all placeholder:text-slate-500"
               />
               {searchVal && (
@@ -304,7 +315,7 @@ export default function Header({
             {activeFiltersCount > 0 && (
               <button
                 id="reset-filters-badge"
-                onClick={clearAllFilters}
+                onClick={() => clearAllFilters(false)}
                 className="hidden md:flex items-center space-x-1 border border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/25 text-amber-400 text-[10px] uppercase tracking-wider py-1.5 px-2.5 rounded-lg transition-colors font-semibold"
               >
                 <span>Hủy {activeFiltersCount} lọc</span>
