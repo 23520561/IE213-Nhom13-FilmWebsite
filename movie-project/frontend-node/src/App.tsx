@@ -9,6 +9,10 @@ import {
   graphqlGetMovies,
   graphqlGetMovieById,
   graphqlToggleWatchlist,
+  graphqlCreateMovie,
+  graphqlUpdateMovie,
+  graphqlDeleteMovie,
+  graphqlGetAllUsers,
   graphqlGetUserRecommendations,
   graphqlGetFeaturedMovies,
   graphqlGetTopRatedMovies,
@@ -38,11 +42,121 @@ const AdminSidebar = React.lazy(
   () => import("./components/admin/AdminSidebar"),
 );
 const AdminTopbar = React.lazy(() => import("./components/admin/AdminTopbar"));
-const AdminOverview = React.lazy(
-  () => import("./components/admin/AdminOverview"),
-);
 const AdminMovies = React.lazy(() => import("./components/admin/AdminMovies"));
 const AdminUsers = React.lazy(() => import("./components/admin/AdminUsers"));
+
+interface AdminDashboardProps {
+  movies: Movie[];
+  setMovies: React.Dispatch<React.SetStateAction<Movie[]>>;
+  showNotification: (msg: string) => void;
+  currentUser: any;
+}
+
+function AdminDashboard({
+  movies,
+  setMovies,
+  showNotification,
+  currentUser,
+}: AdminDashboardProps) {
+  // Thay đổi tab mặc định ban đầu là quản lý phim 'movies' thay vì 'overview'
+  const [adminTab, setAdminTab] = useState<"movies" | "users">("movies");
+  const [users, setUsers] = useState<any[]>([]); // Khởi tạo state lưu danh sách users từ DB
+  const navigate = useNavigate();
+
+  // Khóa bảo mật điều hướng
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== "admin") {
+      showNotification("Truy cập bị từ chối!");
+      navigate("/");
+      return;
+    }
+
+    // Gọi API lấy danh sách user từ DB ngay khi vào trang Admin
+    const fetchUsers = async () => {
+      const dbUsers = await graphqlGetAllUsers();
+      setUsers(dbUsers);
+    };
+    fetchUsers();
+  }, [currentUser, navigate, showNotification]);
+
+  if (!currentUser || currentUser.role !== "admin") {
+    return null;
+  }
+
+  // --- Các hàm API giữ nguyên logic cũ ---
+  const handleAddMovie = async (newDoc: any) => {
+    try {
+      showNotification("Đang thêm phim mới...");
+      const createdMovie = await graphqlCreateMovie(newDoc);
+      setMovies((prev) => [{ ...newDoc, id: createdMovie.id }, ...prev]);
+      showNotification(`Đã thêm thành công: "${newDoc.title}"`);
+    } catch (error: any) {
+      showNotification(error.message || "Lỗi khi thêm phim.");
+    }
+  };
+
+  const handleEditMovie = async (id: string, updatedData: any) => {
+    try {
+      showNotification("Đang lưu thay đổi...");
+      await graphqlUpdateMovie(id, updatedData);
+      setMovies((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, ...updatedData } : m)),
+      );
+      showNotification("Đã cập nhật phim!");
+    } catch (error: any) {
+      showNotification(error.message || "Lỗi khi cập nhật.");
+    }
+  };
+
+  const handleDeleteMovie = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa phim này?")) return;
+    try {
+      showNotification("Đang thực hiện xóa...");
+      await graphqlDeleteMovie(id);
+      setMovies((prev) => prev.filter((m) => m.id !== id));
+      showNotification("Đã xóa phim thành công.");
+    } catch (error: any) {
+      showNotification(error.message || "Lỗi khi xóa phim.");
+    }
+  };
+
+  return (
+    <div className="flex bg-[#0f172a] text-slate-100 min-h-screen font-sans overflow-hidden text-left fixed inset-0 z-50">
+      <AdminSidebar
+        activeTab={adminTab}
+        setActiveTab={setAdminTab}
+        onExitAdmin={() => {
+          navigate("/");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
+
+      <div className="flex-1 flex flex-col min-h-screen overflow-hidden bg-[#f8fafc]">
+        <AdminTopbar
+          currentTabName={
+            adminTab === "movies"
+              ? "Quản lý kho phim"
+              : "Danh sách người dùng đăng ký"
+          }
+          currentUser={currentUser}
+        />
+
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 font-sans">
+          {adminTab === "movies" ? (
+            <AdminMovies
+              movies={movies}
+              onAddMovie={handleAddMovie}
+              onEditMovie={handleEditMovie}
+              onDeleteMovie={handleDeleteMovie}
+            />
+          ) : (
+            <AdminUsers users={users} /> // Truyền danh sách user thật xuống
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   // 1. Khởi tạo danh sách phim là mảng rỗng [] thay vì dùng MOCK_MOVIES
@@ -831,80 +945,6 @@ export default function App() {
     );
   };
 
-  if (isAdminMode) {
-    return (
-      <React.Suspense
-        fallback={
-          <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f172a] text-slate-100 font-sans">
-            <div className="flex flex-col items-center space-y-4">
-              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-sm font-bold tracking-wider text-slate-400 uppercase animate-pulse">
-                Đang nạp hệ thống Admin...
-              </p>
-            </div>
-          </div>
-        }
-      >
-        <div className="flex bg-[#0f172a] text-slate-100 min-h-screen font-sans overflow-hidden">
-          <AdminSidebar
-            activeTab={adminTab}
-            setActiveTab={setAdminTab}
-            onExitAdmin={() => {
-              setIsAdminMode(false);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          />
-          <div className="flex-1 flex flex-col min-h-screen overflow-hidden bg-[#f8fafc]">
-            <AdminTopbar
-              currentTabName={
-                adminTab === "overview"
-                  ? "Tổng quan hệ thống"
-                  : adminTab === "movies"
-                    ? "Quản lý kho phim lẻ"
-                    : "Quản lý người dùng"
-              }
-            />
-            <main className="flex-1 overflow-hidden font-sans">
-              {adminTab === "overview" ? (
-                <AdminOverview
-                  movies={movies}
-                  onNavigateToMovies={() => setAdminTab("movies")}
-                  onNavigateToUsers={() => setAdminTab("users")}
-                />
-              ) : adminTab === "movies" ? (
-                <AdminMovies
-                  movies={movies}
-                  onAddMovie={(newDoc) => {
-                    const mId = `m-${Date.now()}`;
-                    const created: Movie = { id: mId, ...newDoc };
-                    setMovies((prev) => [...prev, created]);
-                    showNotification(
-                      `Đã công chiếu "${newDoc.title}" thành công!`,
-                    );
-                  }}
-                  onEditMovie={(id, updated) => {
-                    setMovies((prev) =>
-                      prev.map((m) => (m.id === id ? { ...m, ...updated } : m)),
-                    );
-                    showNotification("Đã lưu thay đổi phim thành công!");
-                  }}
-                  onDeleteMovie={(id) => {
-                    setMovies((prev) => prev.filter((m) => m.id !== id));
-                    showNotification(
-                      "Đã gỡ bỏ phim khỏi kho dữ liệu thành công.",
-                    );
-                  }}
-                />
-              ) : (
-                <AdminUsers />
-              )}
-            </main>
-          </div>
-        </div>
-      </React.Suspense>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100 flex flex-col font-sans select-none antialiased">
       {/* Toast Alert pop notification */}
@@ -953,7 +993,7 @@ export default function App() {
         }}
         onShowNotification={showNotification}
         onOpenAdmin={() => {
-          setIsAdminMode(true);
+          navigate("/admin");
           showNotification("Đã khởi chạy Giao Diện Quản Trị Hệ Thống!");
         }}
       />
@@ -993,6 +1033,17 @@ export default function App() {
 
           {/* 3. ĐƯỜNG DẪN TRÌNH PHÁT VIDEO */}
           <Route path="/xem-phim/:id" element={<VideoPlayerWrapper />} />
+          <Route
+            path="/admin/*"
+            element={
+              <AdminDashboard
+                movies={movies}
+                setMovies={setMovies}
+                showNotification={showNotification}
+                currentUser={currentUser}
+              />
+            }
+          />
         </Routes>
       </main>
 
@@ -1113,7 +1164,7 @@ export default function App() {
               {currentUser?.role === "admin" && (
                 <button
                   onClick={() => {
-                    setIsAdminMode(true);
+                    navigate("/admin");
                     window.scrollTo({ top: 0 });
                     showNotification(
                       "Đã truy cập Hệ thống Quản Trị từ lối tắt chân trang!",

@@ -114,7 +114,7 @@ const typeDefs = gql`
     title: String!
     description: String!
     releaseDate: String
-    genres: [ID!]!
+    genres: [String!]!
     duration: Int
     videoUrl: String
     poster: String
@@ -127,7 +127,7 @@ const typeDefs = gql`
     title: String
     description: String
     releaseDate: String
-    genres: [ID!]
+    genres: [String!]
     duration: Int
     videoUrl: String
     poster: String

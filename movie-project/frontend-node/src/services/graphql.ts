@@ -55,19 +55,22 @@ export async function executeGraphQL<
       signal,
     });
 
-    if (!response.ok) {
-      throw new Error(
-        `GraphQL HTTP request failed with status ${response.status}`,
-      );
+    // 1. CỐ GẮNG ĐỌC DỮ LIỆU JSON TRƯỚC (Dù là lỗi 400 thì GraphQL vẫn trả JSON báo lỗi chi tiết)
+    let result: any;
+    try {
+      result = await response.json();
+    } catch (e) {
+      // Nếu không phải JSON (Lỗi server sập hẳn)
     }
 
-    const result = await response.json();
+    // 2. NẾU GRAPHQL CHỈ RA LỖI CHI TIẾT -> BẮT VÀ NÉM RA MÀN HÌNH
+    if (result && result.errors && result.errors.length > 0) {
+      throw new Error(result.errors[0].message);
+    }
 
-    if (result.errors && result.errors.length > 0) {
-      throw new GraphQLError(
-        result.errors[0].message || "GraphQL Server returned errors",
-        result.errors,
-      );
+    // 3. NẾU LỖI HTTP MÀ KHÔNG CÓ TRONG JSON
+    if (!response.ok) {
+      throw new Error(`Lỗi kết nối Server: ${response.status}`);
     }
 
     return result.data as TData;
@@ -341,7 +344,11 @@ export const REGISTER = `
   mutation Register($username: String!, $email: String!, $password: String!) {
     register(username: $username, email: $email, password: $password) {
       token
-      user { id username email }
+      user { id 
+        username 
+        email 
+        role 
+        avatar }
     }
   }
 `;
@@ -350,7 +357,11 @@ export const LOGIN = `
   mutation Login($email: String!, $password: String!) {
     login(email: $email, password: $password) {
       token
-      user { id username email }
+      user { id 
+        username 
+        email 
+        role 
+        avatar }
     }
   }
 `;
@@ -364,6 +375,16 @@ export const TOGGLE_WATCHLIST = `
   }
 `;
 
+export const GET_ALL_USERS = `
+  query GetAllUsers {
+    users {
+      id
+      username
+      email
+      role
+    }
+  }
+`;
 export const CREATE_WATCH_HISTORY = `
   mutation CreateWatchHistory($movieId: ID!, $watchedTime: Int!, $duration: Int!, $isFinished: Boolean) {
     createWatchHistory(movieId: $movieId, watchedTime: $watchedTime, duration: $duration, isFinished: $isFinished) {
@@ -686,6 +707,52 @@ export async function graphqlGetMovieComments(
     // If aborted, ignore noise
     if ((err as any)?.name === "AbortError") return [];
     console.error("graphqlGetMovieComments failed:", err);
+    return [];
+  }
+}
+
+export async function graphqlCreateMovie(input: any) {
+  const query = `
+    mutation CreateMovie($input: CreateMovieInput!) {
+      createMovie(input: $input) {
+        id
+        title
+      }
+    }
+  `;
+  const data = await executeGraphQL(query, { input });
+  return data.createMovie;
+}
+
+export async function graphqlUpdateMovie(id: string, input: any) {
+  const query = `
+    mutation UpdateMovie($id: ID!, $input: UpdateMovieInput!) {
+      updateMovie(id: $id, input: $input) {
+        id
+        title
+      }
+    }
+  `;
+  const data = await executeGraphQL(query, { id, input });
+  return data.updateMovie;
+}
+
+export async function graphqlDeleteMovie(id: string) {
+  const query = `
+    mutation DeleteMovie($id: ID!) {
+      deleteMovie(id: $id)
+    }
+  `;
+  const data = await executeGraphQL(query, { id });
+  return data.deleteMovie;
+}
+
+export async function graphqlGetAllUsers() {
+  try {
+    const data = await executeGraphQL(GET_ALL_USERS);
+    return data && data.users ? data.users : [];
+  } catch (err) {
+    console.error("graphqlGetAllUsers failed:", err);
     return [];
   }
 }

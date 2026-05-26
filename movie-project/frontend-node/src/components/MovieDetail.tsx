@@ -21,7 +21,7 @@ import {
 import MovieRow from "./MovieRow";
 import styles from "../styles.module.css";
 import { getOptimizedImageUrl } from "../utils/image";
-import userIcon from "../../images/user.svg";
+import userIcon from "../assets/images/user.svg";
 
 interface MovieDetailProps {
   movie: Movie;
