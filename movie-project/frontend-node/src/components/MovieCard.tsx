@@ -45,10 +45,8 @@ function MovieCard({
           referrerPolicy="no-referrer"
           className="w-full h-full object-cover transform scale-100 group-hover:scale-105 transition-transform duration-500 ease-out"
         />
-
         {/* Hover translucent darkness shade */}
         <div className="absolute inset-0 bg-slate-950/20 group-hover:bg-slate-950/50 transition-colors duration-300" />
-
         {/* Special Top tags */}
         <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
           <span className="inline-flex items-center rounded-md bg-slate-900/90 text-[10px] font-bold text-amber-400 px-2 py-0.5 border border-slate-800/80">
@@ -60,20 +58,7 @@ function MovieCard({
             </span>
           )}
         </div>
-
         {/* Cinematic Quality label & language */}
-        <div className="absolute bottom-2 right-2 flex items-center space-x-1 z-10">
-          <span className="rounded bg-slate-950/80 text-[10px] text-zinc-300 font-bold px-1.5 py-0.5 border border-slate-800/80">
-            {movie.quality}
-          </span>
-          <span className="rounded bg-red-950/90 text-[10px] text-red-400 border border-red-900/60 font-semibold px-1 py-0.5">
-            {movie.language === "Vietsub"
-              ? "Sub"
-              : movie.language === "Thuyết Minh"
-                ? "T.Minh"
-                : "L.Tiếng"}
-          </span>
-        </div>
 
         {/* Quick action overlay buttons shown on hover */}
         <div className="absolute inset-x-0 bottom-0 top-0 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-15 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent">

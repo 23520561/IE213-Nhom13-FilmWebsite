@@ -13,7 +13,6 @@ export const MOCK_MOVIES: Movie[] = [
     actors: ["Christian Bale", "Cillian Murphy", "Emily Blunt"],
     imdb: 8.9,
     quality: "4K",
-    language: "Vietsub",
     poster:
       "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400",
     backdrop:
@@ -39,7 +38,6 @@ export const MOCK_MOVIES: Movie[] = [
     actors: ["Timothée Chalamet", "Zendaya", "Oscar Isaac"],
     imdb: 9.1,
     quality: "4K",
-    language: "Thuyết Minh",
     poster:
       "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=400",
     backdrop:
@@ -65,7 +63,6 @@ export const MOCK_MOVIES: Movie[] = [
     actors: ["Ken Watanabe", "Takeru Satoh", "Hiroyuki Sanada"],
     imdb: 8.4,
     quality: "Full HD",
-    language: "Vietsub",
     poster:
       "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=400",
     backdrop:
@@ -91,7 +88,6 @@ export const MOCK_MOVIES: Movie[] = [
     actors: ["Chihiro", "Haku", "Yubaba"],
     imdb: 8.8,
     quality: "Full HD",
-    language: "Lồng Tiếng",
     poster:
       "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&q=80&w=400",
     backdrop:
@@ -117,7 +113,6 @@ export const MOCK_MOVIES: Movie[] = [
     actors: ["Gong Yoo", "Song Hye-kyo", "Park Bo-gum"],
     imdb: 8.2,
     quality: "Full HD",
-    language: "Vietsub",
     poster:
       "https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&q=80&w=400",
     backdrop:
@@ -143,7 +138,6 @@ export const MOCK_MOVIES: Movie[] = [
     actors: ["Vera Farmiga", "Patrick Wilson", "Lupita Nyong'o"],
     imdb: 7.7,
     quality: "Full HD",
-    language: "Vietsub",
     poster:
       "https://images.unsplash.com/photo-1509248961158-e54f6934749c?auto=format&fit=crop&q=80&w=400",
     backdrop:
@@ -169,7 +163,6 @@ export const MOCK_MOVIES: Movie[] = [
     actors: ["Kiều Minh Tuấn", "Kaity Nguyễn", "Johnny Trí Nguyễn"],
     imdb: 8.0,
     quality: "Full HD",
-    language: "Thuyết Minh",
     poster:
       "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&q=80&w=400",
     backdrop:
@@ -195,7 +188,6 @@ export const MOCK_MOVIES: Movie[] = [
     actors: ["Ngô Kinh", "Chương Tử Di", "Dịch Dương Thiên Tỉ"],
     imdb: 8.3,
     quality: "4K",
-    language: "Thuyết Minh",
     poster:
       "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?auto=format&fit=crop&q=80&w=400",
     backdrop:
@@ -221,7 +213,6 @@ export const MOCK_MOVIES: Movie[] = [
     actors: ["Lee Jung-jae", "Kim Hye-soo", "Wi Ha-joon"],
     imdb: 8.5,
     quality: "4K",
-    language: "Vietsub",
     poster:
       "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400",
     backdrop:
@@ -247,7 +238,6 @@ export const MOCK_MOVIES: Movie[] = [
     actors: ["Lãnh Thanh", "Phương Anh Đào", "NSƯT Thành Lộc"],
     imdb: 7.9,
     quality: "Full HD",
-    language: "Vietsub",
     poster:
       "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&q=80&w=400",
     backdrop:

@@ -183,11 +183,20 @@ export const GET_MOVIE_COMMENTS = `
       id
       content
       createdAt
+      likeCount
       user {
         id
         username
         avatar
       }
+    }
+  }
+`;
+export const LIKE_COMMENT = `
+  mutation LikeComment($commentId: ID!) {
+    likeComment(commentId: $commentId) {
+      id
+      likeCount
     }
   }
 `;
@@ -315,6 +324,14 @@ export async function graphqlCreateComment(movieId: string, content: string) {
     content,
   });
   return data.createComment;
+}
+
+export async function graphqlLikeComment(commentId: string) {
+  interface Response {
+    likeComment: any;
+  }
+  const data = await executeGraphQL<Response>(LIKE_COMMENT, { commentId });
+  return data.likeComment;
 }
 
 export async function graphqlCreateRating(movieId: string, rating: number) {

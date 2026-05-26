@@ -88,6 +88,7 @@ const typeDefs = gql`
     createdAt: String!
     updatedAt: String!
     likes: [User!]
+    likeCount: Int
     isSpoiler: Boolean
   }
 
@@ -199,6 +200,7 @@ const typeDefs = gql`
     createComment(movieId: ID!, content: String!): Comment!
     updateComment(commentId: ID!, content: String!): Comment!
     deleteComment(commentId: ID!): Boolean!
+    likeComment(commentId: ID!): Comment!
 
     # Genre mutations (admin only)
     createGenre(input: CreateGenreInput!): Genre!

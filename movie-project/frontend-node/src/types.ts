@@ -32,7 +32,6 @@ export interface Movie {
   isPremium?: boolean;
   // allow flexible values from UI forms/data
   quality?: string;
-  language?: string;
   synopsis?: string;
   poster?: string;
   backdrop?: string;
