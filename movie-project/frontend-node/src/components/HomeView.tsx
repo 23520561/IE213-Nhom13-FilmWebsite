@@ -21,6 +21,9 @@ interface HomeViewProps {
   handlePlayClick: (id: string) => void;
   handleToggleWatchlist: (id: string) => void;
   showNotification: (msg: string) => void;
+  hasMore?: boolean;
+  isFetchingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 export default function HomeView({
@@ -39,6 +42,9 @@ export default function HomeView({
   handlePlayClick,
   handleToggleWatchlist,
   showNotification,
+  hasMore,
+  isFetchingMore,
+  onLoadMore,
 }: HomeViewProps) {
   return (
     <div className="space-y-10">
@@ -103,21 +109,46 @@ export default function HomeView({
           </div>
 
           {filteredMovies.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-              {filteredMovies.map((movie) => (
-                <div
-                  key={movie.id}
-                  className="animate-in fade-in duration-300 text-left"
-                >
-                  <MovieCard
-                    movie={movie}
-                    isInWatchlist={watchlistIds.includes(movie.id)}
-                    onMovieClick={handleMovieClick}
-                    onPlayClick={handlePlayClick}
-                    onToggleWatchlist={handleToggleWatchlist}
-                  />
+            <div className="space-y-12">
+              {" "}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                {filteredMovies.map((movie) => (
+                  <div
+                    key={movie.id}
+                    className="animate-in fade-in duration-300 text-left"
+                  >
+                    <MovieCard
+                      movie={movie}
+                      isInWatchlist={watchlistIds.includes(movie.id)}
+                      onMovieClick={handleMovieClick}
+                      onPlayClick={handlePlayClick}
+                      onToggleWatchlist={handleToggleWatchlist}
+                    />
+                  </div>
+                ))}
+              </div>
+              {/* KHỐI NÚT TẢI THÊM MỚI */}
+              {hasMore && (
+                <div className="flex justify-center pb-8">
+                  <button
+                    onClick={onLoadMore}
+                    disabled={isFetchingMore}
+                    className="inline-flex items-center space-x-2 px-8 py-3.5 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white text-sm font-bold transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-xl"
+                  >
+                    {isFetchingMore ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin text-red-500" />
+                        <span>Đang kết nối Database...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Layers className="h-4 w-4 text-red-500" />
+                        <span>Tải thêm phim</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-              ))}
+              )}
             </div>
           ) : (
             <div

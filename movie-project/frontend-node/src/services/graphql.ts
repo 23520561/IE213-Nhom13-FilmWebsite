@@ -106,8 +106,8 @@ export const UPDATE_USER_PROFILE = `
 `;
 
 export const GET_MOVIES = `
-  query GetMovies($page: Int, $limit: Int, $genre: String, $search: String) {
-    movies(page: $page, limit: $limit, genre: $genre, search: $search) {
+  query GetMovies($page: Int, $limit: Int, $category: String, $year: String, $searchQuery: String) {
+    movies(page: $page, limit: $limit, category: $category, year: $year, searchQuery: $searchQuery) {
       id
       title
       description
@@ -177,7 +177,20 @@ export const GET_GENRES = `
     }
   }
 `;
-
+export const GET_MOVIE_COMMENTS = `
+  query GetMovieComments($movieId: ID!) {
+    comments(movieId: $movieId) {
+      id
+      content
+      createdAt
+      user {
+        id
+        username
+        avatar
+      }
+    }
+  }
+`;
 export const CREATE_COMMENT = `
   mutation CreateComment($movieId: ID!, $content: String!) {
     createComment(movieId: $movieId, content: $content) {
@@ -268,8 +281,9 @@ export async function graphqlUpdateUserProfile(
 export async function graphqlGetMovies(variables: {
   page?: number;
   limit?: number;
-  genre?: string;
-  search?: string;
+  category?: string;
+  year?: string;
+  searchQuery?: string;
 }): Promise<Movie[]> {
   interface Response {
     movies: Movie[] | null;
@@ -375,5 +389,19 @@ export async function graphqlToggleWatchlist(
     // If backend does not support server-side watchlist, fall back gracefully
     console.warn("graphqlToggleWatchlist unavailable, falling back:", err);
     return { success: false, watchlistIds: [] };
+  }
+}
+export async function graphqlGetMovieComments(movieId: string) {
+  interface Response {
+    comments: any[];
+  }
+  try {
+    const data = await executeGraphQL<Response>(GET_MOVIE_COMMENTS, {
+      movieId,
+    });
+    return data && data.comments ? data.comments : [];
+  } catch (err) {
+    console.error("graphqlGetMovieComments failed:", err);
+    return [];
   }
 }

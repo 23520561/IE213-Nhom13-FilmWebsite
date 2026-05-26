@@ -67,20 +67,63 @@ export default function App() {
     "overview",
   );
 
+  // Filters State
+  const [filters, setFilters] = useState<FilterState>({
+    searchQuery: "",
+    category: "Tất Cả",
+    year: "Tất Cả",
+  });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const prevFiltersRef = React.useRef(filters); // Dùng để theo dõi khi bộ lọc thay đổi
+
   // 2. Tự động gọi API khi chạy ứng dụng
+  // 2. Tự động gọi API khi chạy ứng dụng và khi bộ lọc/trang thay đổi
   useEffect(() => {
     async function fetchBackendMovies() {
       try {
-        setLoading(true);
-        // Ép kiểu kết quả trả về thành any để linh hoạt bóc tách dữ liệu mà không bị TypeScript chặn
-        const data = (await graphqlGetMovies({})) as any;
+        // Kiểm tra xem người dùng vừa đổi bộ lọc hay vừa bấm Tải thêm
+        const isFilterChanged =
+          prevFiltersRef.current.category !== filters.category ||
+          prevFiltersRef.current.year !== filters.year ||
+          prevFiltersRef.current.searchQuery !== filters.searchQuery;
 
-        console.log("Dữ liệu gốc từ Backend:", data);
+        let fetchPage = currentPage;
 
-        // Trích xuất mảng phim thực tế dựa theo cấu trúc phân trang của backend
+        if (isFilterChanged) {
+          fetchPage = 1;
+          setCurrentPage(1); // Đưa số trang về 1
+          prevFiltersRef.current = filters; // Cập nhật bộ theo dõi lọc
+          setLoading(true); // Hiển thị trạng thái tải dữ liệu lớn
+        } else {
+          if (fetchPage > 1) setIsFetchingMore(true);
+        }
+
+        const queryParams: any = {
+          limit: 50,
+          page: fetchPage,
+        };
+
+        if (filters.category !== "Tất Cả")
+          queryParams.category = filters.category;
+        if (filters.year !== "Tất Cả") queryParams.year = filters.year;
+        if (filters.searchQuery.trim() !== "")
+          queryParams.searchQuery = filters.searchQuery;
+
+        console.log("Gửi yêu cầu lọc tới Backend với tham số:", queryParams);
+        const data = (await graphqlGetMovies(queryParams)) as any;
         const rawMovies = data?.movies || (Array.isArray(data) ? data : []);
 
-        // CHUẨN HÓA DỮ LIỆU KHỚP 100% VỚI MONGODB BÊN BACKEND
+        // Nếu dữ liệu trả về ít hơn 50 phim nghĩa là database đã hết phim để tải tiếp
+        if (rawMovies.length < 50) {
+          setHasMore(false);
+        } else {
+          setHasMore(true);
+        }
+
+        // CHUẨN HÓA DỮ LIỆU ĐẦY ĐỦ ĐỂ CUNG CẤP CHO CÁC HÀNG PHIM TRANG CHỦ
         const normalize = (movie: any) => ({
           ...movie,
           id: movie.id || movie._id,
@@ -91,11 +134,9 @@ export default function App() {
               ? new Date(movie.releaseDate).getFullYear()
               : 1994),
           views: movie.views || movie.viewCount || 0,
-          // Derive `category` from `genres` field supplied by backend
           category:
             (Array.isArray(movie.genres) && movie.genres.length > 0
-              ? // genres might be objects { id, name } or simple strings
-                (movie.genres[0].name || movie.genres[0])
+              ? movie.genres[0].name || movie.genres[0]
               : movie.category) || "Hành Động",
           director: movie.director || "Đang cập nhật",
           actors: Array.isArray(movie.actors)
@@ -111,7 +152,10 @@ export default function App() {
                 count: movie.rating.count || 100,
               }
             : { average: 8.5, count: 100 },
-          imdb: movie.imdb !== undefined ? Number(movie.imdb) : 8.5,
+          imdb:
+            movie.rating?.average !== undefined
+              ? Number(movie.rating.average)
+              : 8.5,
           poster:
             movie.poster ||
             "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&q=80&w=400",
@@ -119,25 +163,35 @@ export default function App() {
             movie.backdrop ||
             "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200",
           videoUrl: movie.videoUrl || movie.trailer || "",
-          isNew: movie.isNew !== undefined ? movie.isNew : true,
-          isTrending: movie.isTrending !== undefined ? movie.isTrending : true,
+          isNew: movie.isNew !== undefined ? movie.isNew : true, // Ép mặc định true nếu DB không có để hiển thị hàng phim mới
+          isTrending: movie.isTrending !== undefined ? movie.isTrending : true, // Ép mặc định true để hiển thị hàng thịnh hành
           duration: movie.duration || 120,
         });
 
         const formattedMovies = rawMovies.map((movie: any) => normalize(movie));
 
-        console.log("Dữ liệu sau khi đã chuẩn hóa xong:", formattedMovies);
-        setMovies(formattedMovies);
+        // Quyết định làm sạch danh sách hay nối tiếp mảng phim
+        if (fetchPage === 1) {
+          setMovies(formattedMovies);
+        } else {
+          setMovies((prev) => {
+            const existingIds = new Set(prev.map((m: any) => m.id));
+            const uniqueNewMovies = formattedMovies.filter(
+              (m: any) => !existingIds.has(m.id),
+            );
+            return [...prev, ...uniqueNewMovies];
+          });
+        }
       } catch (error) {
         console.error("Không thể kết nối với Backend hoặc lỗi GraphQL:", error);
       } finally {
         setLoading(false);
+        setIsFetchingMore(false);
       }
     }
 
     fetchBackendMovies();
-  }, []); // Kết thúc useEffect
-
+  }, [filters, currentPage]);
   // Watch list state loaded from localStorage
   const [watchlistIds, setWatchlistIds] = useState<string[]>(() => {
     try {
@@ -148,13 +202,6 @@ export default function App() {
     } catch {
       return [];
     }
-  });
-
-  // Filters State
-  const [filters, setFilters] = useState<FilterState>({
-    searchQuery: "",
-    category: "Tất Cả",
-    year: "Tất Cả",
   });
 
   const navigate = useNavigate();
@@ -278,52 +325,16 @@ export default function App() {
   };
 
   // Determine active dynamic film list depending on multi-dimensional filters
-  const filteredMovies = movies.filter((movie) => {
-    const q = filters.searchQuery.toLowerCase();
-    const matchesSearch =
-      (movie.title || "").toLowerCase().includes(q) ||
-      ((movie.originalTitle || "").toLowerCase().includes(q)) ||
-      ((movie.director || "").toLowerCase().includes(q)) ||
-      ((movie.actors || []) as string[]).some((actor) =>
-        (actor || "").toLowerCase().includes(q),
-      );
-
-    const matchesCategory =
-      filters.category === "Tất Cả" || movie.category === filters.category;
-    // Country filter removed — always match
-    const matchesCountry = true;
-    // Year filter: support exact year or ranges like "1990-2000" or relational like ">2000"/"<1990"
-    let matchesYear = true;
-    const fy = filters.year?.toString?.().trim();
-    if (fy && fy !== "Tất Cả") {
-      const my = Number(movie.year ?? NaN);
-      if (fy.includes("-")) {
-        const parts = fy.split("-").map((p) => Number(p.trim()));
-        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-          matchesYear = my >= parts[0] && my <= parts[1];
-        } else {
-          matchesYear = String(movie.year ?? "") === fy;
-        }
-      } else if (fy.startsWith(">")) {
-        const n = Number(fy.slice(1));
-        matchesYear = !isNaN(n) ? my > n : String(movie.year ?? "") === fy;
-      } else if (fy.startsWith("<")) {
-        const n = Number(fy.slice(1));
-        matchesYear = !isNaN(n) ? my < n : String(movie.year ?? "") === fy;
-      } else {
-        matchesYear = String(movie.year ?? "") === fy;
-      }
-    }
-
-    return matchesSearch && matchesCategory && matchesYear;
-  });
+  const filteredMovies = movies;
 
   // Watchlist movies matching filtered list
   const watchlistMovies = movies.filter((m) => watchlistIds.includes(m.id));
 
   // Categorizations lists for home layout view
   const newMovies = movies.filter((m) => m.isNew);
-  const actionMovies = movies.filter((m) => m.category === "Hành Động" || m.category === "Action");
+  const actionMovies = movies.filter(
+    (m) => m.category === "Hành Động" || m.category === "Action",
+  );
   const theaterHotMovies = movies.filter((m) => (m.views ?? 0) > 180000);
   const topTrendingMovies = movies.filter((m) => m.isTrending);
 
@@ -379,7 +390,7 @@ export default function App() {
             views: (m as any).views || (m as any).viewCount || 0,
             category:
               (Array.isArray((m as any).genres) && (m as any).genres.length > 0
-                ? ((m as any).genres[0].name || (m as any).genres[0])
+                ? (m as any).genres[0].name || (m as any).genres[0]
                 : (m as any).category) || "Hành Động",
             director: (m as any).director || "Đang cập nhật",
             actors: Array.isArray((m as any).actors)
@@ -392,6 +403,8 @@ export default function App() {
                   count: m.rating.count || 100,
                 }
               : { average: 8.5, count: 100 },
+            imdb:
+              m.rating?.average !== undefined ? Number(m.rating.average) : 8.5,
             poster:
               m.poster ||
               "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&q=80&w=400",
@@ -480,7 +493,7 @@ export default function App() {
             views: (m as any).views || (m as any).viewCount || 0,
             category:
               (Array.isArray((m as any).genres) && (m as any).genres.length > 0
-                ? ((m as any).genres[0].name || (m as any).genres[0])
+                ? (m as any).genres[0].name || (m as any).genres[0]
                 : (m as any).category) || "Hành Động",
             director: (m as any).director || "Đang cập nhật",
             actors: Array.isArray((m as any).actors)
@@ -493,6 +506,8 @@ export default function App() {
                   count: m.rating.count || 100,
                 }
               : { average: 8.5, count: 100 },
+            imdb:
+              m.rating?.average !== undefined ? Number(m.rating.average) : 8.5,
             poster:
               m.poster ||
               "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&q=80&w=400",
@@ -656,7 +671,9 @@ export default function App() {
           if (!watchlistIds || watchlistIds.length === 0) {
             showNotification("Danh sách yêu thích của bạn hiện đang trống.");
           } else {
-            showNotification(`Đang hiển thị danh sách phim yêu thích của bạn (${watchlistIds.length})`);
+            showNotification(
+              `Đang hiển thị danh sách phim yêu thích của bạn (${watchlistIds.length})`,
+            );
           }
           // Smooth scroll to watchlist category
           setTimeout(() => {
@@ -695,6 +712,9 @@ export default function App() {
                 handlePlayClick={handlePlayClick}
                 handleToggleWatchlist={handleToggleWatchlist}
                 showNotification={showNotification}
+                hasMore={hasMore}
+                isFetchingMore={isFetchingMore}
+                onLoadMore={() => setCurrentPage((prev) => prev + 1)}
               />
             }
           />

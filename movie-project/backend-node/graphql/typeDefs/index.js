@@ -158,11 +158,12 @@ const typeDefs = gql`
     users: [User!]!
     user(id: ID!): User
     movies(
-      page: Int = 1
-      limit: Int = 10
-      genre: String
-      search: String
-    ): [Movie!]!
+      page: Int
+      limit: Int
+      category: String
+      year: String
+      searchQuery: String
+    ): [Movie]
     movie(id: ID!): Movie
     genres: [Genre!]!
     ratings(movieId: ID!): [Rating!]!
