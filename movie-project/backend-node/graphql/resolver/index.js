@@ -444,6 +444,22 @@ const resolvers = {
       logMutation("deleteComment", context.user.userId, commentId);
       return true;
     },
+    likeComment: async (parent, args, context) => {
+      requireAuth(context);
+      const { commentId } = args;
+
+      // Atomically increment likeCount
+      const comment = await models.Comment.findByIdAndUpdate(
+        commentId,
+        { $inc: { likeCount: 1 } },
+        { new: true },
+      );
+
+      if (!comment) throw new Error("Comment not found");
+
+      logMutation("likeComment", context.user.userId, comment._id);
+      return comment;
+    },
 
     // Genre mutations
     createGenre: async (parent, args, context) => {

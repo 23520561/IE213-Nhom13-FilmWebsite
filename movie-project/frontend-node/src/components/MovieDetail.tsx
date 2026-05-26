@@ -16,6 +16,7 @@ import { Movie, Comment } from "../types";
 import {
   graphqlGetMovieComments,
   graphqlCreateComment,
+  graphqlLikeComment,
 } from "../services/graphql";
 import MovieRow from "./MovieRow";
 import styles from "../styles.module.css";
@@ -59,7 +60,7 @@ export default function MovieDetail({
         avatar: c.user?.avatar || userIcon,
         content: c.content,
         timestamp: new Date(Number(c.createdAt)).toLocaleDateString("vi-VN"),
-        likes: 0,
+        likes: c.likeCount || 0,
       }));
 
       setComments(formattedComments);
@@ -116,6 +117,12 @@ export default function MovieDetail({
       setNewCommentName("");
       setNewCommentContent("");
       onShowNotification("Bình luận của bạn đã được đăng thành công!");
+
+      // Smooth-scroll to the newly added comment so the UI doesn't jump to page top
+      setTimeout(() => {
+        const el = document.getElementById(`comment-${newComment.id}`);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 80);
     } catch (error: any) {
       onShowNotification(error.message || "Có lỗi xảy ra khi đăng bình luận.");
     } finally {
@@ -123,15 +130,25 @@ export default function MovieDetail({
     }
   };
 
-  const handleLikeComment = (commentId: string) => {
-    setComments((prev) =>
-      prev.map((c) => {
-        if (c.id === commentId) {
-          return { ...c, likes: (c.likes || 0) + 1 };
-        }
-        return c;
-      }),
-    );
+  const handleLikeComment = (e: React.MouseEvent, commentId: string) => {
+    // prevent any form submission or parent handlers
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Optimistic UI: update immediately
+    setComments((prev) => prev.map((c) => (c.id === commentId ? { ...c, likes: (c.likes || 0) + 1 } : c)));
+
+    // Send like to backend; update UI with authoritative likeCount when response arrives
+    (async () => {
+      try {
+        const updated = await graphqlLikeComment(commentId);
+        // update the corresponding comment's likes with backend's likeCount
+        setComments((prev) => prev.map((c) => (c.id === updated.id ? { ...c, likes: updated.likeCount || (c.likes || 0) } : c)));
+      } catch (err: any) {
+        console.error("Like failed:", err);
+        onShowNotification(err?.message || "Không thể thích bình luận");
+      }
+    })();
     onShowNotification("Đã thích bình luận!");
   };
 
@@ -338,6 +355,7 @@ export default function MovieDetail({
             {comments.map((comment) => (
               <div
                 key={comment.id}
+                id={`comment-${comment.id}`}
                 className="p-4 rounded-xl border border-slate-905 bg-slate-950/45 flex gap-3.5 transition-all hover:bg-slate-950/80"
               >
                 <img
@@ -363,7 +381,8 @@ export default function MovieDetail({
 
                   <div className="flex items-center justify-start pt-2">
                     <button
-                      onClick={() => handleLikeComment(comment.id)}
+                      type="button"
+                      onClick={(e) => handleLikeComment(e, comment.id)}
                       className="inline-flex items-center space-x-1.5 text-[10px] text-zinc-500 hover:text-red-400 font-semibold transition-colors"
                     >
                       <Heart className="h-3 w-3 fill-rose-500/10 text-rose-500" />

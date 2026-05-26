@@ -1,8 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Plus, Check, Star, Eye, Calendar, Clock, ChevronRight, ChevronLeft } from 'lucide-react';
-import { Movie } from '../types';
-import styles from '../styles.module.css';
-import { getOptimizedImageUrl } from '../utils/image';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Play,
+  Plus,
+  Check,
+  Star,
+  Eye,
+  Calendar,
+  Clock,
+  ChevronRight,
+  ChevronLeft,
+} from "lucide-react";
+import { Movie } from "../types";
+import styles from "../styles.module.css";
+import { getOptimizedImageUrl } from "../utils/image";
 
 interface HeroSectionProps {
   movies: Movie[];
@@ -17,12 +27,12 @@ export default function HeroSection({
   watchlistIds,
   onMovieClick,
   onPlayClick,
-  onToggleWatchlist
+  onToggleWatchlist,
 }: HeroSectionProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const spotlightMovies = movies.filter(m => m.isTrending).slice(0, 4);
+  const spotlightMovies = movies.filter((m) => m.isTrending).slice(0, 4);
 
   // Auto slide effect
   useEffect(() => {
@@ -30,7 +40,7 @@ export default function HeroSection({
 
     const startTimer = () => {
       timerRef.current = setInterval(() => {
-        setCurrentIndex(prev => (prev + 1) % spotlightMovies.length);
+        setCurrentIndex((prev) => (prev + 1) % spotlightMovies.length);
       }, 7000);
     };
 
@@ -50,17 +60,19 @@ export default function HeroSection({
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentIndex(prev => (prev - 1 + spotlightMovies.length) % spotlightMovies.length);
+    setCurrentIndex(
+      (prev) => (prev - 1 + spotlightMovies.length) % spotlightMovies.length,
+    );
   };
 
   const handleNext = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentIndex(prev => (prev + 1) % spotlightMovies.length);
+    setCurrentIndex((prev) => (prev + 1) % spotlightMovies.length);
   };
 
   return (
-    <section 
-      id="hero-banner-slider" 
+    <section
+      id="hero-banner-slider"
       className="relative w-full h-[36rem] md:h-[42rem] lg:h-[46rem] bg-slate-950 overflow-hidden select-none group/hero"
     >
       {/* Background slide */}
@@ -89,17 +101,12 @@ export default function HeroSection({
               <span className="inline-flex items-center rounded-md bg-slate-900 border border-slate-800 px-2.5 py-1 text-xs font-semibold text-amber-400">
                 ⭐ {currentMovie.imdb} IMDb
               </span>
-              <span className="inline-flex items-center rounded-md bg-slate-900/80 border border-slate-800 px-2 py-0.5 text-xs text-slate-300 font-medium">
-                {currentMovie.quality}
-              </span>
-              <span className="inline-flex items-center rounded-md bg-zinc-800/80 px-2 py-0.5 text-xs text-slate-300">
-                {currentMovie.language}
-              </span>
+              {/* language removed - backend does not provide this field */}
             </div>
 
             {/* Title */}
             <div className="space-y-1">
-              <h1 
+              <h1
                 onClick={() => onMovieClick(currentMovie.id)}
                 className="cursor-pointer text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white tracking-tight leading-none hover:text-red-500 transition-colors"
               >
@@ -122,7 +129,9 @@ export default function HeroSection({
               </span>
               <span className="flex items-center space-x-1 font-semibold">
                 <Eye className="h-4 w-4 text-slate-400" />
-                <span>Lượt xem: {currentMovie.views.toLocaleString('vi-VN')}</span>
+                <span>
+                  Lượt xem: {currentMovie.views.toLocaleString("vi-VN")}
+                </span>
               </span>
             </div>
 
@@ -156,12 +165,20 @@ export default function HeroSection({
                 onClick={() => onToggleWatchlist(currentMovie.id)}
                 className={`flex items-center justify-center p-3.5 rounded-full border transition-all ${
                   isInWatchlist
-                    ? 'bg-slate-900 border-red-500 text-red-500'
-                    : 'bg-slate-900/60 border-slate-700 hover:border-slate-500 text-slate-200'
+                    ? "bg-slate-900 border-red-500 text-red-500"
+                    : "bg-slate-900/60 border-slate-700 hover:border-slate-500 text-slate-200"
                 }`}
-                title={isInWatchlist ? "Bỏ khỏi danh sách của tôi" : "Thêm vào danh sách của tôi"}
+                title={
+                  isInWatchlist
+                    ? "Bỏ khỏi danh sách của tôi"
+                    : "Thêm vào danh sách của tôi"
+                }
               >
-                {isInWatchlist ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                {isInWatchlist ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
               </button>
             </div>
           </div>
@@ -194,7 +211,9 @@ export default function HeroSection({
             id={`hero-slide-dot-${idx}`}
             onClick={() => setCurrentIndex(idx)}
             className={`h-2.5 rounded-full transition-all duration-300 ${
-              idx === currentIndex ? 'w-8 bg-[#ef4444]' : 'w-2.5 bg-slate-600/60 hover:bg-slate-400'
+              idx === currentIndex
+                ? "w-8 bg-[#ef4444]"
+                : "w-2.5 bg-slate-600/60 hover:bg-slate-400"
             }`}
             title={`Slide ${idx + 1}`}
           />

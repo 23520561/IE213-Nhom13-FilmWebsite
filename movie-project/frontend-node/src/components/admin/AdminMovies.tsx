@@ -31,7 +31,6 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
   const [actors, setActors] = useState('');
   const [imdb, setImdb] = useState(8.0);
   const [quality, setQuality] = useState('4K');
-  const [language, setLanguage] = useState('Vietsub');
   const [poster, setPoster] = useState('');
   const [backdrop, setBackdrop] = useState('');
   const [synopsis, setSynopsis] = useState('');
@@ -48,7 +47,6 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
     setActors('Robert Downey Jr., Chris Evans, Mark Ruffalo');
     setImdb(9.3);
     setQuality('4K');
-    setLanguage('Thuyết Minh');
     setPoster('https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&q=80&w=400');
     setBackdrop('https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200');
     setSynopsis('Sau các sự kiện tàn khốc của phần trước, vũ trụ bị đe dọa nghiêm trọng. Nhóm Avengers còn lại tập hợp một lần nữa để đảo ngược hành động của Thanos và khôi phục lại trật tự cho thiên hà.');
@@ -68,7 +66,6 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
     setActors('');
     setImdb(8.0);
     setQuality('4K');
-    setLanguage('Vietsub');
     setPoster('');
     setBackdrop('');
     setSynopsis('');
@@ -89,7 +86,6 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
     setActors((movie.actors || []).join(', '));
     setImdb(movie.imdb || 8.0);
     setQuality(movie.quality || '4K');
-    setLanguage(movie.language || 'Vietsub');
     setPoster(movie.poster || '');
     setBackdrop(movie.backdrop || '');
     setSynopsis(movie.synopsis || '');
@@ -127,7 +123,6 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
       actors: actors.split(',').map(s => s.trim()).filter(Boolean),
       imdb: Number(imdb),
       quality,
-      language,
       poster,
       backdrop: backdrop || 'https://images.unsplash.com/photo-1578894381163-e72c17f2d45f?auto=format&fit=crop&q=80&w=1200',
       synopsis,
@@ -298,7 +293,6 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
                         <span className="font-extrabold text-slate-800 bg-amber-500/10 border border-amber-550/20 px-2 py-0.5 rounded text-[10px] inline-block uppercase">
                           {movie.quality}
                         </span>
-                        <span className="text-[9px] text-zinc-400 block font-semibold">{movie.language}</span>
                       </div>
                     </td>
 
@@ -467,19 +461,7 @@ export default function AdminMovies({ movies, onAddMovie, onEditMovie, onDeleteM
                   </select>
                 </div>
 
-                {/* Language tags */}
-                <div className="space-y-1.5">
-                  <label className="font-bold text-zinc-700 block">Phụ đề & Thuyết minh bản dịch</label>
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-blue-550 focus:bg-white text-zinc-800 cursor-pointer"
-                  >
-                    <option value="Vietsub">Vietsub (Phụ đề việt)</option>
-                    <option value="Thuyết Minh">Thuyết Minh</option>
-                    <option value="Lồng Tiếng">Lồng Tiếng</option>
-                  </select>
-                </div>
+                {/* language removed - backend does not provide this field */}
 
                 {/* Category Options */}
                 <div className="space-y-1.5">
