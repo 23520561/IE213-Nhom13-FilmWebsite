@@ -192,7 +192,9 @@ export default function MovieDetail({
 
     // Optimistic UI: update immediately (preserve order)
     setComments((prev) =>
-      prev.map((c) => (c.id === commentId ? { ...c, likes: (c.likes || 0) + 1 } : c)),
+      prev.map((c) =>
+        c.id === commentId ? { ...c, likes: (c.likes || 0) + 1 } : c,
+      ),
     );
 
     // Send like to backend; update UI with authoritative likeCount when response arrives
@@ -434,7 +436,7 @@ export default function MovieDetail({
 
           <div
             ref={commentsListRef}
-            className="space-y-3 max-h-[30rem] overflow-y-auto pr-2 customScrollbar"
+            className="space-y-3 max-h-[30rem] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-500/80"
           >
             {comments.map((comment) => (
               <div

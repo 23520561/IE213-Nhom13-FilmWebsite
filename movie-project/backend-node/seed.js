@@ -410,8 +410,9 @@ async function seedTagsAsComments(users, movies) {
       // Chọn ngẫu nhiên 1 User trong Database làm tác giả của bình luận này
       const randomUser = users[Math.floor(Math.random() * users.length)];
 
-      const content = `"${tagContent}"`;
+      const content = `${tagContent}`; // Nội dung bình luận chính là tag từ file CSV
 
+      // Kiểm tra nếu đã tồn tại bình luận giống hệt (cùng user, cùng movie, cùng nội dung) thì không tạo nữa để tránh trùng lặp
       const existingComment = await Comment.findOne({
         user: randomUser._id,
         movie: movie._id,
