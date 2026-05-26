@@ -214,7 +214,7 @@ export default function VideoPlayer({
 
           {isYouTubeLink ? (
             <iframe
-              src={getYoutubeEmbedUrl(movie.videoUrl)}
+              src={getYoutubeEmbedUrl(movie.videoUrl || "")}
               title={movie.title}
               className="w-full h-full object-contain absolute inset-0 z-10"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
