@@ -36,12 +36,10 @@ const PORT = process.env.PORT || 3000;
 const run = async () => {
   await connectDB();
   await server.start();
-  app.use(cors());
-  app.options("*", cors());
   app.use(
     "/graphql",
     cors({
-      origin: ["http://localhost:5173", "http://localhost:3001","https://delightful-bonbon-45103f.netlify.app"],
+      origin: true,
       credentials: true,
     }),
     express.json(),
