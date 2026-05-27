@@ -39,7 +39,7 @@ const run = async () => {
   app.use(
     "/graphql",
     cors({
-      origin: true,
+      origin: ["http://localhost:5173", "http://localhost:3001","https://vermillion-faloodeh-92ce88.netlify.app"],
       credentials: true,
     }),
     express.json(),
