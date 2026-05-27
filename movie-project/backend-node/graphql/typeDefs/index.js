@@ -114,7 +114,7 @@ const typeDefs = gql`
     title: String!
     description: String!
     releaseDate: String
-    genres: [ID!]!
+    genres: [String!]!
     duration: Int
     videoUrl: String
     poster: String
@@ -127,7 +127,7 @@ const typeDefs = gql`
     title: String
     description: String
     releaseDate: String
-    genres: [ID!]
+    genres: [String!]
     duration: Int
     videoUrl: String
     poster: String
@@ -141,6 +141,7 @@ const typeDefs = gql`
     username: String
     avatar: String
     role: Role
+    isActive: Boolean
   }
 
   input CreateGenreInput {
@@ -172,6 +173,7 @@ const typeDefs = gql`
     watchHistories: [WatchHistory!]!
     myWatchHistory: [WatchHistory!]!
     comments(movieId: ID!): [Comment!]!
+    allComments: [Comment!]!
     trendingMovies(limit: Int = 10): [Movie!]!
     featuredMovies(limit: Int = 10): [Movie!]!
     topRatedMovies(limit: Int = 10): [Movie!]!

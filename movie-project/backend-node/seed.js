@@ -248,73 +248,202 @@ async function ensureUsers(count = 50) {
 }
 
 async function seedUserRelatedData(users, movies) {
-  for (const user of users) {
-    const movieSelection = pickRandom(movies, 8);
-    const ratingMovies = movieSelection.slice(0, 5);
-    const watchMovies = movieSelection.slice(2, 7);
-    const commentMovies = movieSelection.slice(4, 7);
+  console.log(
+    "Đang đọc dữ liệu từ ratings.csv bằng Stream để tránh tràn bộ nhớ...",
+  );
 
-    for (const movie of ratingMovies) {
-      const existing = await Rating.findOne({
+  const filePath = path.join(DATA_DIR, "ratings.csv");
+  if (!fs.existsSync(filePath)) {
+    console.warn(
+      "Không tìm thấy ratings.csv, bỏ qua bước tạo dữ liệu tương tác.",
+    );
+    return;
+  }
+
+  // Tạo map để tra cứu nhanh Movie và User
+  const movieMap = new Map(movies.map((m) => [m.movielensId, m]));
+  const userMap = new Map(users.map((u) => [u.numerical_id?.toString(), u]));
+
+  let count = 0;
+
+  // Sử dụng ReadStream để đọc từng dòng thay vì load toàn bộ file vào RAM
+  const fileStream = fs.createReadStream(filePath);
+  const rl = readline.createInterface({
+    input: fileStream,
+    crlfDelay: Infinity,
+  });
+
+  let isFirstLine = true;
+
+  for await (const line of rl) {
+    // Bỏ qua dòng tiêu đề (header) của file CSV
+    if (isFirstLine) {
+      isFirstLine = false;
+      continue;
+    }
+
+    if (!line.trim()) continue;
+
+    // Phân tách dữ liệu: CSV thường có format: userId,movieId,rating,timestamp
+    const parts = line.split(",");
+    const userId = parts[0]?.trim();
+    const movieId = parts[1]?.trim();
+    const ratingValue = Number(parts[2]);
+
+    const movie = movieMap.get(movieId);
+    const user = userMap.get(userId);
+
+    // Nếu tìm thấy cả User và Movie hợp lệ trong Database
+    if (movie && user) {
+      // 1. TẠO RATING (Chuẩn 100% data)
+      const existingRating = await Rating.findOne({
         movie: movie._id,
         user: user._id,
       });
-      if (!existing) {
-        const ratingValue = randomInt(5, 10);
+      if (!existingRating) {
         await Rating.create({
           movie: movie._id,
           user: user._id,
-          rating: ratingValue,
+          rating: ratingValue * 2, // Đổi hệ số 5 sao thành 10
         });
-        process.stdout.write(
-          `User ${user.username} rated ${movie.title} = ${ratingValue}       \r`,
-        );
       }
-    }
 
-    for (const movie of watchMovies) {
-      const existing = await WatchHistory.findOne({
+      // 2. TẠO WATCH HISTORY
+      const existingWatch = await WatchHistory.findOne({
         user: user._id,
         movie: movie._id,
       });
-      if (!existing) {
-        const duration = movie.duration || randomInt(90, 160) * 60;
-        const watchedTime = randomInt(Math.floor(duration * 0.4), duration);
+      if (!existingWatch) {
+        const duration = movie.duration || 120;
+        let watchPercentage = 1.0; // Mặc định là xem 100%
+
+        // Phân tích tâm lý dựa trên điểm số (ratingValue trong CSV từ 0.5 đến 5.0)
+        if (ratingValue >= 4) {
+          watchPercentage = 1.0; // Phim hay: Xem trọn vẹn
+        } else if (ratingValue >= 2.5) {
+          watchPercentage = randomInt(80, 100) / 100; // Bình thường: Xem 80-100%
+        } else {
+          watchPercentage = randomInt(20, 60) / 100; // Quá dở: Tắt sớm sau 20-60% thời lượng
+        }
+
+        const watchedTime = Math.floor(duration * watchPercentage);
+
+        // Trạng thái hoàn thành: Nếu xem qua 90% thì coi như đã xem xong
+        const isFinished = watchPercentage >= 0.9;
+
         await WatchHistory.create({
           user: user._id,
           movie: movie._id,
-          duration,
-          watchedTime,
-          isFinished: watchedTime >= Math.floor(duration * 0.95),
+          duration: duration,
+          watchedTime: watchedTime,
+          isFinished: isFinished,
         });
-        process.stdout.write(
-          `User ${user.username} watch history for ${movie.title}         \r`,
-        );
       }
+
+      count++;
+      process.stdout.write(
+        `Đã đồng bộ Rating & WatchHistory thực tế cho ${count} lượt... \r`,
+      );
     }
 
-    for (const movie of commentMovies) {
-      const content = `Review by ${user.username} for ${movie.title}: This movie is great!`;
-      const existing = await Comment.findOne({
-        user: user._id,
+    // Giới hạn 5000 lượt để test cho nhanh.
+    if (count >= 5000) {
+      rl.close(); // Đóng stream giải phóng RAM
+      break;
+    }
+  }
+
+  console.log(`\n✓ Hoàn tất đồng bộ ${count} tương tác thực tế từ Stream CSV.`);
+}
+
+async function seedTagsAsComments(users, movies) {
+  console.log(
+    "Đang đọc dữ liệu từ tags.csv bằng Stream để đồng bộ Bình luận...",
+  );
+
+  const filePath = path.join(DATA_DIR, "tags.csv");
+  if (!fs.existsSync(filePath)) {
+    console.warn("Không tìm thấy tags.csv, bỏ qua bước tạo bình luận.");
+    return;
+  }
+
+  const movieMap = new Map(movies.map((m) => [m.movielensId, m]));
+  const userMap = new Map(users.map((u) => [u.numerical_id?.toString(), u]));
+
+  let count = 0;
+
+  const fileStream = fs.createReadStream(filePath);
+  const rl = readline.createInterface({
+    input: fileStream,
+    crlfDelay: Infinity,
+  });
+
+  let isFirstLine = true;
+
+  for await (const line of rl) {
+    if (isFirstLine) {
+      isFirstLine = false;
+      continue;
+    }
+
+    if (!line.trim()) continue;
+
+    // Phân tách chuỗi thủ công để lấy dữ liệu (đề phòng tag có chứa dấu phẩy)
+    const firstComma = line.indexOf(",");
+    const secondComma = line.indexOf(",", firstComma + 1);
+    const lastComma = line.lastIndexOf(",");
+
+    if (firstComma === -1 || secondComma === -1 || lastComma === -1) continue;
+
+    const userId = line.substring(0, firstComma).trim();
+    const movieId = line.substring(firstComma + 1, secondComma).trim();
+
+    // Lấy nội dung tag nằm giữa dấu phẩy thứ 2 và dấu phẩy cuối cùng, đồng thời xóa dấu ngoặc kép nếu có
+    let tagContent = line.substring(secondComma + 1, lastComma).trim();
+    tagContent = tagContent.replace(/(^"|"$)/g, "");
+
+    const movie = movieMap.get(movieId);
+    const user = userMap.get(userId);
+
+    // Nếu dữ liệu hợp lệ, biến Tag thành một dòng Bình luận (Comment)
+    if (movie && tagContent) {
+      // Chọn ngẫu nhiên 1 User trong Database làm tác giả của bình luận này
+      const randomUser = users[Math.floor(Math.random() * users.length)];
+
+      const content = `${tagContent}`; // Nội dung bình luận chính là tag từ file CSV
+
+      // Kiểm tra nếu đã tồn tại bình luận giống hệt (cùng user, cùng movie, cùng nội dung) thì không tạo nữa để tránh trùng lặp
+      const existingComment = await Comment.findOne({
+        user: randomUser._id,
         movie: movie._id,
         content,
       });
-      if (!existing) {
+
+      if (!existingComment) {
         await Comment.create({
-          user: user._id,
+          user: randomUser._id,
           movie: movie._id,
-          content,
+          content: content,
           parent: null,
           likeCount: randomInt(0, 20),
           replyCount: 0,
         });
-        process.stdout.write(
-          `User ${user.username} commented on ${movie.title}                  \r`,
-        );
       }
+
+      count++;
+      process.stdout.write(
+        `Đã đồng bộ Bình luận (Tags) thực tế cho ${count} lượt... \r`,
+      );
+    }
+
+    // Giới hạn 3000 bình luận để Seed chạy nhanh.
+    if (count >= 3000) {
+      rl.close();
+      break;
     }
   }
+
+  console.log(`\n✓ Hoàn tất đồng bộ ${count} bình luận từ tags.csv.`);
 }
 
 async function run() {
@@ -334,6 +463,7 @@ async function run() {
     const movies = await ensureMovies(60);
     const users = await ensureUsers(50);
     await seedUserRelatedData(users, movies);
+    await seedTagsAsComments(users, movies);
 
     console.log(
       "\nSeed completed for movies, users, ratings, watch history, and comments.",

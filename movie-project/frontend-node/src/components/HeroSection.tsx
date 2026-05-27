@@ -130,7 +130,12 @@ export default function HeroSection({
               <span className="flex items-center space-x-1 font-semibold">
                 <Eye className="h-4 w-4 text-slate-400" />
                 <span>
-                  Lượt xem: {(currentMovie.views ?? 0).toLocaleString("vi-VN")}
+                  Lượt xem:{" "}
+                  {(
+                    (currentMovie as any).viewCount ||
+                    currentMovie.views ||
+                    0
+                  ).toLocaleString("vi-VN")}
                 </span>
               </span>
             </div>
