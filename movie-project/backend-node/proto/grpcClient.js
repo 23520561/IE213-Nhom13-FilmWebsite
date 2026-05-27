@@ -19,7 +19,7 @@ const recommendationProto =
 
 // Create a gRPC client (can be replaced in tests via `setClient`)
 let client = new recommendationProto.RecommendationService(
-  "localhost:50051",
+  "movie-review-system-asd3cwhbd2b3g0fw.southeastasia-01.azurewebsites.net:50051",
   grpc.credentials.createInsecure(),
 );
 
