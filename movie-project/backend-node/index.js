@@ -36,7 +36,8 @@ const PORT = process.env.PORT || 3000;
 const run = async () => {
   await connectDB();
   await server.start();
-
+  app.use(cors());
+  app.options("*", cors());
   app.use(
     "/graphql",
     cors({
