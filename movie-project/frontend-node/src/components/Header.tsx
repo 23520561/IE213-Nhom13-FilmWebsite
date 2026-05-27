@@ -60,12 +60,12 @@ export default function Header({
 
   // Sync search input after short delay or change
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setFilters((prev) => ({ ...prev, searchQuery: searchVal }));
-    }, 280);
-    return () => clearTimeout(handler);
-  }, [searchVal, setFilters]);
+  // useEffect(() => {
+  //   const handler = setTimeout(() => {
+  //     setFilters((prev) => ({ ...prev, searchQuery: searchVal }));
+  //   }, 280);
+  //   return () => clearTimeout(handler);
+  // }, [searchVal, setFilters]);
 
   // Click outside listener for dropdowns
   useEffect(() => {

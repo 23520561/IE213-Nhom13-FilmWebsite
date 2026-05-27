@@ -1,14 +1,17 @@
 import os
 import sys
-import grpc
-from app import config
 from concurrent import futures
 
+import config
+import grpc
+
 # Ensure the package root is on sys.path so the `proto` package imports correctly
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from proto import service_pb2, service_pb2_grpc
+
 from app.engine import RecommenderEngine
+
 
 class RecommendationService(service_pb2_grpc.RecommendationServiceServicer):
     def __init__(self):
@@ -25,12 +28,12 @@ class RecommendationService(service_pb2_grpc.RecommendationServiceServicer):
         movie_id = None
         # support either `movie_id` (new proto) or `seed_movie_ids` (older proto)
         try:
-            if hasattr(request, 'movie_id') and request.movie_id:
+            if hasattr(request, "movie_id") and request.movie_id:
                 try:
                     movie_id = int(request.movie_id)
                 except Exception:
                     movie_id = request.movie_id
-            elif hasattr(request, 'seed_movie_ids') and len(request.seed_movie_ids) > 0:
+            elif hasattr(request, "seed_movie_ids") and len(request.seed_movie_ids) > 0:
                 # use first seed id as bias
                 try:
                     movie_id = int(request.seed_movie_ids[0])
@@ -39,12 +42,16 @@ class RecommendationService(service_pb2_grpc.RecommendationServiceServicer):
         except Exception:
             movie_id = None
 
-        k = request.max_results if hasattr(request, 'max_results') and request.max_results else None
-        alpha = request.alpha if hasattr(request, 'alpha') and request.alpha else 0.6
+        k = (
+            request.max_results
+            if hasattr(request, "max_results") and request.max_results
+            else None
+        )
+        alpha = request.alpha if hasattr(request, "alpha") and request.alpha else 0.6
 
         # Try to obtain total_watched from the request (if proto includes it)
         total_watched = None
-        if hasattr(request, 'total_watched'):
+        if hasattr(request, "total_watched"):
             try:
                 total_watched = int(request.total_watched)
             except Exception:
@@ -54,7 +61,7 @@ class RecommendationService(service_pb2_grpc.RecommendationServiceServicer):
         if total_watched is None:
             try:
                 for md in context.invocation_metadata() or []:
-                    if md.key == 'total_watched':
+                    if md.key == "total_watched":
                         try:
                             total_watched = int(md.value)
                         except Exception:
@@ -66,43 +73,71 @@ class RecommendationService(service_pb2_grpc.RecommendationServiceServicer):
 
         # If total_watched is provided use switching_hybrid_recommend
         if total_watched is not None:
-            results = self.engine.switching_hybrid_recommend(user_id=user_id, total_watched=total_watched, recent_movie_id=movie_id, k=k or getattr(config, 'TOP_K', 10), alpha=alpha)
+            results = self.engine.switching_hybrid_recommend(
+                user_id=user_id,
+                total_watched=total_watched,
+                recent_movie_id=movie_id,
+                k=k or getattr(config, "TOP_K", 10),
+                alpha=alpha,
+            )
         else:
             if k:
-                results = self.engine.hybrid_recommend(user_id=user_id, movie_id=movie_id, k=k, alpha=alpha)
+                results = self.engine.hybrid_recommend(
+                    user_id=user_id, movie_id=movie_id, k=k, alpha=alpha
+                )
             else:
-                results = self.engine.hybrid_recommend(user_id=user_id, movie_id=movie_id, alpha=alpha)
+                results = self.engine.hybrid_recommend(
+                    user_id=user_id, movie_id=movie_id, alpha=alpha
+                )
         if results is None or results.empty:
-            context.abort(grpc.StatusCode.NOT_FOUND, "No recommendations found for user_id: {}".format(request.user_id))
+            context.abort(
+                grpc.StatusCode.NOT_FOUND,
+                "No recommendations found for user_id: {}".format(request.user_id),
+            )
         recommendation_list = []
         for index, row in results.iterrows():
-            movie = service_pb2.MovieRecommendation(movie_id=str(row['movieId']), title=row.get('title', ''), score=float(row.get('score', 0.0)))
+            movie = service_pb2.MovieRecommendation(
+                movie_id=str(row["movieId"]),
+                title=row.get("title", ""),
+                score=float(row.get("score", 0.0)),
+            )
             recommendation_list.append(movie)
         return service_pb2.RecommendationResponse(recommendations=recommendation_list)
 
     def SimilarMovies(self, request, context):
-        if hasattr(request, 'max_results') and request.max_results:
-            results = self.engine.get_similar_movies(int(request.movie_id), k=request.max_results)
+        if hasattr(request, "max_results") and request.max_results:
+            results = self.engine.get_similar_movies(
+                int(request.movie_id), k=request.max_results
+            )
         else:
             results = self.engine.get_similar_movies(int(request.movie_id))
         if results is None or results.empty:
-            context.abort(grpc.StatusCode.NOT_FOUND, f"Movie with ID {request.movie_id} not found.")
+            context.abort(
+                grpc.StatusCode.NOT_FOUND,
+                f"Movie with ID {request.movie_id} not found.",
+            )
         recommendation_list = []
         for index, row in results.iterrows():
-            movie = service_pb2.MovieRecommendation(movie_id=str(row['movieId']), title=row['title'])
+            movie = service_pb2.MovieRecommendation(
+                movie_id=str(row["movieId"]), title=row["title"]
+            )
             recommendation_list.append(movie)
         return service_pb2.SimilarResponse(recommendations=recommendation_list)
 
     def Health(self, request, context):
-        return service_pb2.HealthResponse(status='ok')
+        return service_pb2.HealthResponse(status="ok")
+
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    service_pb2_grpc.add_RecommendationServiceServicer_to_server(RecommendationService(), server)
-    server.add_insecure_port('[::]:50051')
+    service_pb2_grpc.add_RecommendationServiceServicer_to_server(
+        RecommendationService(), server
+    )
+    server.add_insecure_port("[::]:50051")
     server.start()
     print("Recommendation service started on [::]:50051")
     server.wait_for_termination()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     serve()

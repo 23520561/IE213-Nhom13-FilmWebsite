@@ -39,6 +39,8 @@ import {
   Shield,
 } from "lucide-react";
 import styles from "./styles.module.css";
+import MovieDetailWrapper from "./utils/ MovieDetailWrapper";
+import VideoPlayerWrapper from "./utils/VideoPlayerWrapper";
 
 // Admin modules lazy loaded for premium production performance setup
 const AdminSidebar = React.lazy(
@@ -906,133 +908,82 @@ export default function App() {
   }, []);
 
   // ================= COMPONENT ĐỆM (WRAPPERS) =================
-  const MovieDetailWrapper = () => {
-    const { id } = useParams<{ id: string }>();
-    const [activeMovie, setActiveMovie] = React.useState<Movie | null>(null);
-    const [loadingDetail, setLoadingDetail] = React.useState(false);
+  
 
-    useEffect(() => {
-      let mounted = true;
-      const local = movies.find((m) => m.id === id);
-      if (local) {
-        setActiveMovie(local);
-        return;
-      }
-
-      async function load() {
-        if (!id) return;
-        setLoadingDetail(true);
-        try {
-          const m = await graphqlGetMovieById(id);
-          if (!mounted) return;
-          if (!m) {
-            setActiveMovie(null);
-            return;
-          }
-          // Normalize same as list
-          const normalized = normalizeMovie(m);
-          setActiveMovie(normalized);
-        } catch (err) {
-          console.error("Failed to load movie by id:", err);
-          setActiveMovie(null);
-        } finally {
-          setLoadingDetail(false);
-        }
-      }
-
-      load();
-
-      return () => {
-        mounted = false;
-      };
-    }, [id, movies]);
-
-    if (loadingDetail)
-      return (
-        <div className="p-20 text-white text-center">Đang nạp phim...</div>
-      );
-    if (!activeMovie)
-      return (
-        <div className="p-20 text-white text-center">Không tìm thấy phim!</div>
-      );
-
+  
+  if (isAdminMode) {
     return (
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-        <MovieDetail
-          movie={activeMovie}
-          allMovies={movies}
-          watchlistIds={watchlistIds}
-          onPlayClick={handlePlayClick}
-          onToggleWatchlist={handleToggleWatchlist}
-          onMovieClick={handleMovieClick}
-          onShowNotification={showNotification}
-        />
-      </div>
-    );
-  };
-
-  const VideoPlayerWrapper = () => {
-    const { id } = useParams<{ id: string }>();
-    const [activeMovie, setActiveMovie] = React.useState<Movie | null>(null);
-    const [loadingPlayer, setLoadingPlayer] = React.useState(false);
-
-    useEffect(() => {
-      let mounted = true;
-      const local = movies.find((m) => m.id === id);
-      if (local) {
-        setActiveMovie(local);
-        return;
-      }
-
-      async function load() {
-        if (!id) return;
-        setLoadingPlayer(true);
-        try {
-          const m = await graphqlGetMovieById(id);
-          if (!mounted) return;
-          if (!m) {
-            setActiveMovie(null);
-            return;
-          }
-          const normalized = normalizeMovie(m);
-          setActiveMovie(normalized);
-        } catch (err) {
-          console.error("Failed to load movie for player:", err);
-          setActiveMovie(null);
-        } finally {
-          setLoadingPlayer(false);
+      <React.Suspense
+        fallback={
+          <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f172a] text-slate-100 font-sans">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-sm font-bold tracking-wider text-slate-400 uppercase animate-pulse">
+                Đang nạp hệ thống Admin...
+              </p>
+            </div>
+          </div>
         }
-      }
-
-      load();
-
-      return () => {
-        mounted = false;
-      };
-    }, [id, movies]);
-
-    if (loadingPlayer)
-      return (
-        <div className="p-20 text-white text-center">Đang nạp phim...</div>
-      );
-    if (!activeMovie)
-      return (
-        <div className="p-20 text-white text-center">Không tìm thấy phim!</div>
-      );
-
-    return (
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-        <VideoPlayer
-          movie={activeMovie}
-          onGoBack={() => {
-            navigate(`/phim/${id}`);
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }}
-          onShowNotification={showNotification}
-        />
-      </div>
+      >
+        <div className="flex bg-[#0f172a] text-slate-100 min-h-screen font-sans overflow-hidden">
+          <AdminSidebar
+            activeTab={adminTab}
+            setActiveTab={setAdminTab}
+            onExitAdmin={() => {
+              setIsAdminMode(false);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          />
+          <div className="flex-1 flex flex-col min-h-screen overflow-hidden bg-[#f8fafc]">
+            <AdminTopbar
+              currentTabName={
+                adminTab === "overview"
+                  ? "Tổng quan hệ thống"
+                  : adminTab === "movies"
+                    ? "Quản lý kho phim lẻ"
+                    : "Quản lý người dùng"
+              }
+            />
+            <main className="flex-1 overflow-hidden font-sans">
+              {adminTab === "overview" ? (
+                <AdminOverview
+                  movies={movies}
+                  onNavigateToMovies={() => setAdminTab("movies")}
+                  onNavigateToUsers={() => setAdminTab("users")}
+                />
+              ) : adminTab === "movies" ? (
+                <AdminMovies
+                  movies={movies}
+                  onAddMovie={(newDoc) => {
+                    const mId = `m-${Date.now()}`;
+                    const created: Movie = { id: mId, ...newDoc };
+                    setMovies((prev) => [...prev, created]);
+                    showNotification(
+                      `Đã công chiếu "${newDoc.title}" thành công!`,
+                    );
+                  }}
+                  onEditMovie={(id, updated) => {
+                    setMovies((prev) =>
+                      prev.map((m) => (m.id === id ? { ...m, ...updated } : m)),
+                    );
+                    showNotification("Đã lưu thay đổi phim thành công!");
+                  }}
+                  onDeleteMovie={(id) => {
+                    setMovies((prev) => prev.filter((m) => m.id !== id));
+                    showNotification(
+                      "Đã gỡ bỏ phim khỏi kho dữ liệu thành công.",
+                    );
+                  }}
+                />
+              ) : (
+                <AdminUsers />
+              )}
+            </main>
+          </div>
+        </div>
+      </React.Suspense>
     );
-  };
+  }
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100 flex flex-col font-sans select-none antialiased">
@@ -1118,7 +1069,7 @@ export default function App() {
           />
 
           {/* 2. ĐƯỜNG DẪN CHI TIẾT PHIM */}
-          <Route path="/phim/:id" element={<MovieDetailWrapper />} />
+          <Route path="/phim/:id" element={<MovieDetailWrapper movies={movies} watchlistIds={watchlistIds} handlePlayClick={handlePlayClick} handleToggleWatchlist={handleToggleWatchlist} handleMovieClick={handleMovieClick} showNotification={showNotification} />} />
 
           {/* 3. ĐƯỜNG DẪN TRÌNH PHÁT VIDEO */}
           <Route path="/xem-phim/:id" element={<VideoPlayerWrapper />} />
