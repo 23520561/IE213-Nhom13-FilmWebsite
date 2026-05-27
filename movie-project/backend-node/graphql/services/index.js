@@ -2,6 +2,7 @@ import User from "../../models/user.js";
 import Movie from "../../models/movie.js";
 import Rating from "../../models/ratings.js";
 import models from "../../models/index.js";
+import { getCache, setCache } from "../../utils/cache.js";
 
 const getAllUsers = async () => {
   // Implementation for getting all users
@@ -69,13 +70,34 @@ const getMovies = async (page = 1, limit = 50, category, year, searchQuery) => {
 };
 
 const getMovieById = async (id) => {
+  // Check cache first
+  const cacheKey = `movie:${id}`;
+  const cached = getCache(cacheKey);
+  if (cached) return cached;
+  
   // Implementation for getting movie by ID
   const movie = await Movie.findById(id);
+  
+  // Cache for 30 minutes
+  if (movie) {
+    setCache(cacheKey, movie, 30 * 60 * 1000);
+  }
+  
   return movie;
 };
 
 const getRatingsByMovieId = async (movieId) => {
-  return await Rating.find({ movie: movieId }).sort({ createdAt: -1 });
+  // Check cache first
+  const cacheKey = `ratings:${movieId}`;
+  const cached = getCache(cacheKey);
+  if (cached) return cached;
+  
+  const ratings = await Rating.find({ movie: movieId }).sort({ createdAt: -1 });
+  
+  // Cache for 15 minutes
+  setCache(cacheKey, ratings, 15 * 60 * 1000);
+  
+  return ratings;
 };
 export {
   getAllUsers,
