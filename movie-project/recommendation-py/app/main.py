@@ -1,9 +1,20 @@
 import os
 import sys
+
+# import threading
 from concurrent import futures
+from typing import Optional
 
 import config
 import grpc
+import uvicorn
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+# -------------------------
+# FastAPI app (Render needs this)
+# -------------------------
+app = FastAPI()
 
 # Ensure the package root is on sys.path so the `proto` package imports correctly
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -128,18 +139,102 @@ class RecommendationService(service_pb2_grpc.RecommendationServiceServicer):
         return service_pb2.HealthResponse(status="ok")
 
 
-def serve():
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    service_pb2_grpc.add_RecommendationServiceServicer_to_server(
-        RecommendationService(), server
-    )
-    PORT = int(os.environ.get("PORT", 50051))
+@app.post("/similar")
+def similar(req: dict):
+    movie_id = int(req["movie_id"])
+    max_results = req.get("max_results", None)
 
-    server.add_insecure_port(f"[::]:{PORT}")
-    server.start()
-    print("Recommendation service started on [::]:50051")
-    server.wait_for_termination()
+    if max_results:
+        results = RecommendationService().engine.get_similar_movies(
+            movie_id, k=max_results
+        )
+    else:
+        results = RecommendationService().engine.get_similar_movies(movie_id)
+
+    if results is None or results.empty:
+        return {"recommendations": []}
+
+    return {
+        "recommendations": [
+            {"movie_id": str(row["movieId"]), "title": row["title"]}
+            for _, row in results.iterrows()
+        ]
+    }
 
 
+engine = RecommenderEngine()
+
+
+class RecommendRequest(BaseModel):
+    user_id: int
+    max_results: Optional[int] = None
+    movie_id: Optional[int] = None
+    alpha: Optional[float] = 0.6
+    total_watched: Optional[int] = None
+
+
+@app.post("/recommend")
+def recommend(req: RecommendRequest):
+
+    user_id = req.user_id
+    movie_id = req.movie_id
+    k = req.max_results
+    alpha = req.alpha
+    total_watched = req.total_watched
+
+    # SAME logic as gRPC
+    if total_watched is not None:
+        results = engine.switching_hybrid_recommend(
+            user_id=user_id,
+            total_watched=total_watched,
+            recent_movie_id=movie_id,
+            k=k or 10,
+            alpha=alpha,
+        )
+    else:
+        results = engine.hybrid_recommend(
+            user_id=user_id,
+            movie_id=movie_id,
+            k=k,
+            alpha=alpha,
+        )
+
+    if results is None or results.empty:
+        raise HTTPException(status_code=404, detail="No recommendations found")
+
+    return {
+        "recommendations": [
+            {
+                "movie_id": str(row["movieId"]),
+                "title": row["title"],
+                "score": float(row.get("score", 0)),
+            }
+            for _, row in results.iterrows()
+        ]
+    }
+
+
+# def serve():
+#     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+#     service_pb2_grpc.add_RecommendationServiceServicer_to_server(
+#         RecommendationService(), server
+#     )
+#     port = os.environ.get("PORT", "50051")
+#     server.add_insecure_port(f"[::]:{port}")
+#     server.start()
+#     print("Recommendation service started on [::]:50051")
+#     server.wait_for_termination()
+
+
+# if __name__ == "__main__":
+#     serve()
+# main entry
+# -------------------------
 if __name__ == "__main__":
-    serve()
+    # start gRPC in background thread
+    # threading.Thread(target=serve, daemon=True).start()
+
+    # start FastAPI (THIS is what Render sees)
+    HTTP_PORT = int(os.environ.get("PORT", 8000))
+
+    uvicorn.run(app, host="0.0.0.0", port=HTTP_PORT)
