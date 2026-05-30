@@ -133,7 +133,9 @@ def serve():
     service_pb2_grpc.add_RecommendationServiceServicer_to_server(
         RecommendationService(), server
     )
-    server.add_insecure_port("[::]:50051")
+    PORT = int(os.environ.get("PORT", 50051))
+
+    server.add_insecure_port(f"[::]:{PORT}")
     server.start()
     print("Recommendation service started on [::]:50051")
     server.wait_for_termination()
