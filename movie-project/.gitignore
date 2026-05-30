@@ -19,7 +19,7 @@ recommendation-py/__pycache__/
 recommendation-py/*.pyc
 recommendation-py/.env
 recommendation-py/data/
-recommendation-py/models/
+# recommendation-py/models/
 recommendation-py/*.sqlite3
 
 # Project-level
