@@ -908,9 +908,7 @@ export default function App() {
   }, []);
 
   // ================= COMPONENT ĐỆM (WRAPPERS) =================
-  
 
-  
   if (isAdminMode) {
     return (
       <React.Suspense
@@ -1069,10 +1067,25 @@ export default function App() {
           />
 
           {/* 2. ĐƯỜNG DẪN CHI TIẾT PHIM */}
-          <Route path="/phim/:id" element={<MovieDetailWrapper movies={movies} watchlistIds={watchlistIds} handlePlayClick={handlePlayClick} handleToggleWatchlist={handleToggleWatchlist} handleMovieClick={handleMovieClick} showNotification={showNotification} />} />
+          <Route
+            path="/phim/:id"
+            element={
+              <MovieDetailWrapper
+                movies={movies}
+                watchlistIds={watchlistIds}
+                handlePlayClick={handlePlayClick}
+                handleToggleWatchlist={handleToggleWatchlist}
+                handleMovieClick={handleMovieClick}
+                showNotification={showNotification}
+              />
+            }
+          />
 
           {/* 3. ĐƯỜNG DẪN TRÌNH PHÁT VIDEO */}
-          <Route path="/xem-phim/:id" element={<VideoPlayerWrapper />} />
+          <Route
+            path="/xem-phim/:id"
+            element={<VideoPlayerWrapper movies={movies} />}
+          />
           <Route
             path="/admin/*"
             element={
