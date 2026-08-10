@@ -72,7 +72,7 @@ const MovieDetailWrapper = ({movies, watchlistIds, handlePlayClick, handleToggle
         try {
            // 1. Try current movies state
           let localMovie =
-            movies.find((m) => m.id === id) ?? null;
+            (movies || []).find((m) => m.id === id) ?? null;
 
           // 2. Try localStorage cache
           if (!localMovie) {

@@ -5,7 +5,7 @@ import sys
 from concurrent import futures
 from typing import Optional
 
-import config
+from app import config
 import grpc
 import uvicorn
 from fastapi import FastAPI
