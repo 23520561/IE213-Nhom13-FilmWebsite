@@ -9,10 +9,6 @@ import {
   graphqlGetMovies,
   graphqlGetMovieById,
   graphqlToggleWatchlist,
-  graphqlCreateMovie,
-  graphqlUpdateMovie,
-  graphqlDeleteMovie,
-  graphqlGetAllUsers,
   graphqlGetUserRecommendations,
   graphqlGetFeaturedMovies,
   graphqlGetTopRatedMovies,
@@ -41,194 +37,7 @@ import {
 import styles from "./styles.module.css";
 import MovieDetailWrapper from "./utils/ MovieDetailWrapper";
 import VideoPlayerWrapper from "./utils/VideoPlayerWrapper";
-
-// Admin modules lazy loaded for premium production performance setup
-const AdminSidebar = React.lazy(
-  () => import("./components/admin/AdminSidebar"),
-);
-const AdminTopbar = React.lazy(() => import("./components/admin/AdminTopbar"));
-const AdminMovies = React.lazy(() => import("./components/admin/AdminMovies"));
-const AdminUsers = React.lazy(() => import("./components/admin/AdminUsers"));
-const AdminModeration = React.lazy(
-  () => import("./components/admin/AdminModeration"),
-);
-
-interface AdminDashboardProps {
-  movies: Movie[];
-  setMovies: React.Dispatch<React.SetStateAction<Movie[]>>;
-  showNotification: (msg: string) => void;
-  currentUser: any;
-}
-
-function AdminDashboard({
-  movies,
-  setMovies,
-  showNotification,
-  currentUser,
-}: AdminDashboardProps) {
-  // Thay đổi tab mặc định ban đầu là quản lý phim 'movies' thay vì 'overview'
-  const [adminTab, setAdminTab] = useState<"movies" | "users" | "moderation">(
-    "movies",
-  );
-  const [users, setUsers] = useState<any[]>([]); // Khởi tạo state lưu danh sách users từ DB
-  const [comments, setComments] = useState<any[]>([]); // State lưu danh sách comment cho moderation
-  const navigate = useNavigate();
-
-  // Khóa bảo mật điều hướng
-  useEffect(() => {
-    if (!currentUser || currentUser.role !== "admin") {
-      showNotification("Truy cập bị từ chối!");
-      navigate("/");
-      return;
-    }
-
-    // Gọi API lấy danh sách user từ DB ngay khi vào trang Admin
-    const fetchUsers = async () => {
-      const dbUsers = await graphqlGetAllUsers();
-      setUsers(dbUsers);
-    };
-    fetchUsers();
-  }, [currentUser, navigate, showNotification]);
-
-  useEffect(() => {
-    if (adminTab === "moderation") {
-      const fetchComments = async () => {
-        try {
-          const dbComments = await graphqlGetAllComments();
-          setComments(dbComments);
-        } catch (error) {
-          showNotification(
-            "Chưa thể tải danh sách bình luận (Kiểm tra lại Backend Resolver)",
-          );
-        }
-      };
-      fetchComments();
-    }
-  }, [adminTab]);
-
-  if (!currentUser || currentUser.role !== "admin") {
-    return null;
-  }
-
-  // --- Các hàm API giữ nguyên logic cũ ---
-  const handleAddMovie = async (newDoc: any) => {
-    try {
-      showNotification("Đang thêm phim mới...");
-      const createdMovie = await graphqlCreateMovie(newDoc);
-      setMovies((prev) => [{ ...newDoc, id: createdMovie.id }, ...prev]);
-      showNotification(`Đã thêm thành công: "${newDoc.title}"`);
-    } catch (error: any) {
-      showNotification(error.message || "Lỗi khi thêm phim.");
-    }
-  };
-
-  const handleEditMovie = async (id: string, updatedData: any) => {
-    try {
-      showNotification("Đang lưu thay đổi...");
-      await graphqlUpdateMovie(id, updatedData);
-      setMovies((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, ...updatedData } : m)),
-      );
-      showNotification("Đã cập nhật phim!");
-    } catch (error: any) {
-      showNotification(error.message || "Lỗi khi cập nhật.");
-    }
-  };
-
-  const handleDeleteMovie = async (id: string) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa phim này?")) return;
-    try {
-      showNotification("Đang thực hiện xóa...");
-      await graphqlDeleteMovie(id);
-      setMovies((prev) => prev.filter((m) => m.id !== id));
-      showNotification("Đã xóa phim thành công.");
-    } catch (error: any) {
-      showNotification(error.message || "Lỗi khi xóa phim.");
-    }
-  };
-
-  const handleToggleUserStatus = async (
-    userId: string,
-    currentStatus: boolean,
-  ) => {
-    try {
-      const newStatus = !currentStatus;
-      await graphqlUpdateUserStatus(userId, newStatus);
-      setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, isActive: newStatus } : u)),
-      );
-      showNotification(
-        newStatus ? "Đã MỞ KHÓA tài khoản!" : "Đã KHÓA tài khoản thành công!",
-      );
-    } catch (error: any) {
-      showNotification(error.message || "Lỗi khi cập nhật trạng thái.");
-    }
-  };
-
-  const handleDeleteComment = async (commentId: string) => {
-    try {
-      await graphqlDeleteComment(commentId);
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
-      showNotification("Đã xóa bình luận vi phạm!");
-    } catch (error: any) {
-      showNotification(error.message || "Lỗi khi xóa bình luận.");
-    }
-  };
-
-  return (
-    <div className="flex bg-[#0f172a] text-slate-100 min-h-screen font-sans overflow-hidden text-left fixed inset-0 z-50">
-      <AdminSidebar
-        activeTab={adminTab}
-        setActiveTab={setAdminTab}
-        onExitAdmin={() => {
-          navigate("/");
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
-      />
-
-      <div className="flex-1 flex flex-col min-h-screen overflow-hidden bg-[#f8fafc]">
-        <AdminTopbar
-          currentTabName={
-            adminTab === "movies"
-              ? "Quản lý kho phim"
-              : adminTab === "users"
-                ? "Danh sách người dùng đăng ký"
-                : "Hệ thống kiểm duyệt nội dung"
-          }
-          currentUser={currentUser}
-        />
-
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 font-sans">
-          {/* Render theo Tab */}
-          {adminTab === "movies" && (
-            <AdminMovies
-              movies={movies}
-              onAddMovie={handleAddMovie}
-              onEditMovie={handleEditMovie}
-              onDeleteMovie={handleDeleteMovie}
-            />
-          )}
-
-          {adminTab === "users" && (
-            <AdminUsers
-              users={users}
-              onToggleUserStatus={handleToggleUserStatus}
-            />
-          )}
-
-          {adminTab === "moderation" && (
-            <React.Suspense fallback={<div>Đang tải...</div>}>
-              <AdminModeration
-                comments={comments}
-                onDeleteComment={handleDeleteComment}
-              />
-            </React.Suspense>
-          )}
-        </main>
-      </div>
-    </div>
-  );
-}
+import { AdminPage } from "./pages/AdminPage";
 
 export default function App() {
   // 1. Khởi tạo danh sách phim là mảng rỗng [] thay vì dùng MOCK_MOVIES
@@ -244,6 +53,77 @@ export default function App() {
       return null;
     }
   });
+  const [recommendedMovies, setRecommendedMovies] = useState<Movie[]>([]);
+  // Section-specific lists (server-backed where possible)
+  const [sectionNewMovies, setSectionNewMovies] = useState<Movie[]>([]);
+  const [sectionActionMovies, setSectionActionMovies] = useState<Movie[]>([]);
+  const [sectionTheaterHotMovies, setSectionTheaterHotMovies] = useState<
+    Movie[]
+  >([]);
+
+  // Normalize movie shape for use across multiple effects/components
+  const normalizeMovie = (movie: any): Movie =>
+    ({
+      ...movie,
+      id: movie.id || movie._id,
+      year:
+        movie.releaseYear ||
+        (movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : 1995),
+      views: movie.views || movie.viewCount || 0,
+      category:
+        (Array.isArray(movie.genres) && movie.genres.length > 0
+          ? movie.genres[0].name || movie.genres[0]
+          : movie.category) || "Hành Động",
+      director: movie.director || "Đang cập nhật",
+      actors: Array.isArray(movie.actors) ? movie.actors : ["Đang cập nhật"],
+      originalTitle: movie.originalTitle || movie.title || "",
+      // Support both shapes: { average, count } or numeric average value
+      rating:
+        typeof movie.rating === "number"
+          ? { average: Number(movie.rating), count: 100 }
+          : movie.rating
+            ? {
+                average:
+                  movie.rating.average !== undefined
+                    ? Number(movie.rating.average)
+                    : 8.5,
+                count: movie.rating.count || 100,
+              }
+            : { average: 8.5, count: 100 },
+      imdb:
+        typeof movie.rating === "number"
+          ? Number(movie.rating)
+          : movie.rating?.average !== undefined
+            ? Number(movie.rating.average)
+            : 8.5,
+      poster:
+        movie.poster ||
+        "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&q=80&w=400",
+      backdrop:
+        movie.backdrop ||
+        "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200",
+      videoUrl: movie.videoUrl || movie.trailer || "",
+      // Derive trending flag client-side; isNew will be computed per-list
+      isNew: false,
+      // Trending: simple heuristic based on view count
+      isTrending: (() => {
+        const views = movie.views || movie.viewCount || 0;
+        return Number(views) > 150000;
+      })(),
+      duration: movie.duration || 120,
+    }) as Movie;
+
+  // Filters State
+  const [filters, setFilters] = useState<FilterState>({
+    searchQuery: "",
+    category: "Tất Cả",
+    year: "Tất Cả",
+  });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const prevFiltersRef = React.useRef(filters); // Dùng để theo dõi khi bộ lọc thay đổi
 
   // Lưu tự động mỗi khi currentUser thay đổi
   useEffect(() => {
@@ -348,84 +228,6 @@ export default function App() {
       mounted = false;
     };
   }, [currentUser]);
-
-  const [isAdminMode, setIsAdminMode] = useState(false);
-  const [adminTab, setAdminTab] = useState<"overview" | "movies" | "users">(
-    "overview",
-  );
-  const [recommendedMovies, setRecommendedMovies] = useState<Movie[]>([]);
-  // Section-specific lists (server-backed where possible)
-  const [sectionNewMovies, setSectionNewMovies] = useState<Movie[]>([]);
-  const [sectionActionMovies, setSectionActionMovies] = useState<Movie[]>([]);
-  const [sectionTheaterHotMovies, setSectionTheaterHotMovies] = useState<
-    Movie[]
-  >([]);
-
-  // Normalize movie shape for use across multiple effects/components
-  const normalizeMovie = (movie: any): Movie =>
-    ({
-      ...movie,
-      id: movie.id || movie._id,
-      year:
-        movie.releaseYear ||
-        (movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : 1995),
-      views: movie.views || movie.viewCount || 0,
-      category:
-        (Array.isArray(movie.genres) && movie.genres.length > 0
-          ? movie.genres[0].name || movie.genres[0]
-          : movie.category) || "Hành Động",
-      director: movie.director || "Đang cập nhật",
-      actors: Array.isArray(movie.actors) ? movie.actors : ["Đang cập nhật"],
-      originalTitle: movie.originalTitle || movie.title || "",
-      // Support both shapes: { average, count } or numeric average value
-      rating:
-        typeof movie.rating === "number"
-          ? { average: Number(movie.rating), count: 100 }
-          : movie.rating
-            ? {
-                average:
-                  movie.rating.average !== undefined
-                    ? Number(movie.rating.average)
-                    : 8.5,
-                count: movie.rating.count || 100,
-              }
-            : { average: 8.5, count: 100 },
-      imdb:
-        typeof movie.rating === "number"
-          ? Number(movie.rating)
-          : movie.rating?.average !== undefined
-            ? Number(movie.rating.average)
-            : 8.5,
-      poster:
-        movie.poster ||
-        "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&q=80&w=400",
-      backdrop:
-        movie.backdrop ||
-        "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200",
-      videoUrl: movie.videoUrl || movie.trailer || "",
-      // Derive trending flag client-side; isNew will be computed per-list
-      isNew: false,
-      // Trending: simple heuristic based on view count
-      isTrending: (() => {
-        const views = movie.views || movie.viewCount || 0;
-        return Number(views) > 150000;
-      })(),
-      duration: movie.duration || 120,
-    }) as Movie;
-
-  // Filters State
-  const [filters, setFilters] = useState<FilterState>({
-    searchQuery: "",
-    category: "Tất Cả",
-    year: "Tất Cả",
-  });
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const prevFiltersRef = React.useRef(filters); // Dùng để theo dõi khi bộ lọc thay đổi
-
-  // 2. Tự động gọi API khi chạy ứng dụng
   // 2. Tự động gọi API khi chạy ứng dụng và khi bộ lọc/trang thay đổi
   useEffect(() => {
     async function fetchBackendMovies() {
@@ -669,6 +471,8 @@ export default function App() {
     }, 3500);
     return () => clearTimeout(soundTimeout);
   };
+  // Watchlist movies matching filtered list
+  const watchlistMovies = movies.filter((m) => watchlistIds.includes(m.id));
 
   const handleToggleWatchlist = (movieId: string) => {
     // Find the movie across known lists (main list, recommended, or section lists)
@@ -840,9 +644,6 @@ export default function App() {
   // Determine active dynamic film list depending on multi-dimensional filters
   const filteredMovies = movies;
 
-  // Watchlist movies matching filtered list
-  const watchlistMovies = movies.filter((m) => watchlistIds.includes(m.id));
-
   // Sanitize stored watchlist ids against currently loaded movies
   useEffect(() => {
     if (!movies || movies.length === 0) return;
@@ -906,83 +707,6 @@ export default function App() {
     document.addEventListener("submit", onSubmit, true);
     return () => document.removeEventListener("submit", onSubmit, true);
   }, []);
-
-  // ================= COMPONENT ĐỆM (WRAPPERS) =================
-
-  if (isAdminMode) {
-    return (
-      <React.Suspense
-        fallback={
-          <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f172a] text-slate-100 font-sans">
-            <div className="flex flex-col items-center space-y-4">
-              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-sm font-bold tracking-wider text-slate-400 uppercase animate-pulse">
-                Đang nạp hệ thống Admin...
-              </p>
-            </div>
-          </div>
-        }
-      >
-        <div className="flex bg-[#0f172a] text-slate-100 min-h-screen font-sans overflow-hidden">
-          <AdminSidebar
-            activeTab={adminTab}
-            setActiveTab={setAdminTab}
-            onExitAdmin={() => {
-              setIsAdminMode(false);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          />
-          <div className="flex-1 flex flex-col min-h-screen overflow-hidden bg-[#f8fafc]">
-            <AdminTopbar
-              currentTabName={
-                adminTab === "overview"
-                  ? "Tổng quan hệ thống"
-                  : adminTab === "movies"
-                    ? "Quản lý kho phim lẻ"
-                    : "Quản lý người dùng"
-              }
-            />
-            <main className="flex-1 overflow-hidden font-sans">
-              {adminTab === "overview" ? (
-                <AdminOverview
-                  movies={movies}
-                  onNavigateToMovies={() => setAdminTab("movies")}
-                  onNavigateToUsers={() => setAdminTab("users")}
-                />
-              ) : adminTab === "movies" ? (
-                <AdminMovies
-                  movies={movies}
-                  onAddMovie={(newDoc) => {
-                    const mId = `m-${Date.now()}`;
-                    const created: Movie = { id: mId, ...newDoc };
-                    setMovies((prev) => [...prev, created]);
-                    showNotification(
-                      `Đã công chiếu "${newDoc.title}" thành công!`,
-                    );
-                  }}
-                  onEditMovie={(id, updated) => {
-                    setMovies((prev) =>
-                      prev.map((m) => (m.id === id ? { ...m, ...updated } : m)),
-                    );
-                    showNotification("Đã lưu thay đổi phim thành công!");
-                  }}
-                  onDeleteMovie={(id) => {
-                    setMovies((prev) => prev.filter((m) => m.id !== id));
-                    showNotification(
-                      "Đã gỡ bỏ phim khỏi kho dữ liệu thành công.",
-                    );
-                  }}
-                />
-              ) : (
-                <AdminUsers />
-              )}
-            </main>
-          </div>
-        </div>
-      </React.Suspense>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100 flex flex-col font-sans select-none antialiased">
       {/* Toast Alert pop notification */}
@@ -999,7 +723,6 @@ export default function App() {
           </div>
         </div>
       )}
-
       {/* Shared Modular Header component */}
       <Header
         currentUser={currentUser}
@@ -1035,7 +758,6 @@ export default function App() {
           showNotification("Đã khởi chạy Giao Diện Quản Trị Hệ Thống!");
         }}
       />
-
       {/* Main content viewport */}
       <main className="flex-1 w-full flex flex-col">
         <Routes>
@@ -1089,7 +811,7 @@ export default function App() {
           <Route
             path="/admin/*"
             element={
-              <AdminDashboard
+              <AdminPage
                 movies={movies}
                 setMovies={setMovies}
                 showNotification={showNotification}
@@ -1099,7 +821,6 @@ export default function App() {
           />
         </Routes>
       </main>
-
       {/* FOOTER */}
       <footer
         id="cinemax-footer"

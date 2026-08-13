@@ -24,7 +24,7 @@ export default function AdminSidebar({
     { id: "movies", name: "Quản lý kho phim", icon: Film },
     { id: "users", name: "Quản lý người dùng", icon: Users },
     { id: "moderation", name: "Kiểm duyệt nội dung", icon: ShieldAlert },
-  ];
+  ] as const;
 
   return (
     <aside
@@ -52,7 +52,9 @@ export default function AdminSidebar({
           return (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id as any)}
+              onClick={() => {
+                setActiveTab(item.id);
+              }}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
                 isActive
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-500/15 font-black"
