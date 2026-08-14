@@ -17,7 +17,6 @@ export interface MovieRating {
 export interface Movie {
   id: string;
   movielensId?: string;
-  tmdbId?: number;
   title: string;
   description?: string; // backend 'description'
   originalTitle?: string;

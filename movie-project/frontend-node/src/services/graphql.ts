@@ -119,7 +119,6 @@ export const GET_MOVIES = `
       releaseYear
       releaseDate
       movielensId
-      tmdbId
       viewCount
       isPremium
       duration
@@ -155,7 +154,6 @@ export const GET_USER_RECOMMENDATIONS = `
             releaseYear
             releaseDate
             movielensId
-            tmdbId
             backdrop
             duration
             viewCount
@@ -184,7 +182,6 @@ export const GET_MOVIE_BY_ID = `
       releaseYear
       releaseDate
       movielensId
-      tmdbId
       viewCount
       isPremium
       duration

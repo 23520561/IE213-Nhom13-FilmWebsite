@@ -10,15 +10,13 @@ import {
   Calendar,
   Menu,
 } from "lucide-react";
-import { FilterState } from "../types";
 import { CATEGORIES, YEARS } from "../data/movies";
 import styles from "../styles.module.css";
+import { FilterState } from "../types";
 
 interface HeaderProps {
   filters: FilterState;
-  setFilters: (
-    update: FilterState | ((prev: FilterState) => FilterState),
-  ) => void;
+  updateFilters: (f:FilterState)=>void;
   bookmarkCount: number;
   onGoHome: () => void;
   onGoWatchlist: () => void;
@@ -30,7 +28,7 @@ interface HeaderProps {
 
 export default function Header({
   filters,
-  setFilters,
+  updateFilters,
   bookmarkCount,
   onGoHome,
   onGoWatchlist,
@@ -54,6 +52,7 @@ export default function Header({
 
   // Search input local state for instant input experience
   const [searchVal, setSearchVal] = useState(filters.searchQuery);
+
 
   const categoryRef = useRef<HTMLDivElement>(null);
   const yearRef = useRef<HTMLDivElement>(null);
@@ -129,7 +128,7 @@ export default function Header({
   };
 
   const selectCategory = (category: string) => {
-    setFilters((prev) => ({ ...prev, category }));
+    updateFilters({ ...filters, category });
     setIsCategoryDropdownOpen(false);
     onGoHome();
   };
@@ -137,14 +136,14 @@ export default function Header({
   // country filter removed — reserved for compatibility only
 
   const selectYear = (year: string) => {
-    setFilters((prev) => ({ ...prev, year }));
+    updateFilters({ ...filters, year });
     setIsYearDropdownOpen(false);
     onGoHome();
   };
 
   const clearAllFilters = (silent: boolean = false) => {
     setSearchVal("");
-    setFilters({
+    updateFilters({
       searchQuery: "",
       category: "Tất Cả",
       year: "Tất Cả",
@@ -292,7 +291,7 @@ export default function Header({
                 onChange={(e) => setSearchVal(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    setFilters((prev) => ({ ...prev, searchQuery: searchVal }));
+                    updateFilters({ ...filters, searchQuery: searchVal });
                     onGoHome(); // Cưỡng chế quay về trang chủ để xem kết quả lọc
                     onShowNotification(
                       `Đang tìm kiếm dữ liệu cho: "${searchVal}"`,

@@ -38,6 +38,7 @@ import styles from "./styles.module.css";
 import MovieDetailWrapper from "./utils/ MovieDetailWrapper";
 import VideoPlayerWrapper from "./utils/VideoPlayerWrapper";
 import { AdminPage } from "./pages/AdminPage";
+import HomePage from "./pages/HomePage";
 
 export default function App() {
   // 1. Khởi tạo danh sách phim là mảng rỗng [] thay vì dùng MOCK_MOVIES
@@ -121,6 +122,13 @@ export default function App() {
   });
 
   const [currentPage, setCurrentPage] = useState(1);
+  function updateFilters(query: FilterState) {
+    setFilters(query);
+    setCurrentPage(1);
+  }
+  function updatePage(n: number) {
+    setCurrentPage(n);
+  }
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const prevFiltersRef = React.useRef(filters); // Dùng để theo dõi khi bộ lọc thay đổi
@@ -728,7 +736,7 @@ export default function App() {
         currentUser={currentUser}
         onAuthChange={setCurrentUser}
         filters={filters}
-        setFilters={setFilters}
+        updateFilters={updateFilters}
         bookmarkCount={watchlistMovies.length}
         onGoHome={handleGoHome}
         onGoWatchlist={() => {
@@ -765,26 +773,40 @@ export default function App() {
           <Route
             path="/"
             element={
-              <HomeView
-                movies={movies}
+              // <HomeView
+              //   movies={movies}
+              //   recommendedMovies={recommendedMovies}
+              //   watchlistMovies={watchlistMovies}
+              //   watchlistIds={watchlistIds}
+              //   newMovies={sectionNewMovies}
+              //   theaterHotMovies={sectionTheaterHotMovies}
+              //   actionMovies={sectionActionMovies}
+              //   hasActiveFilters={hasActiveFilters}
+              //   filters={filters}
+              //   setFilters={setFilters}
+              //   filteredMovies={filteredMovies}
+              //   handleMovieClick={handleMovieClick}
+              //   handlePlayClick={handlePlayClick}
+              //   handleToggleWatchlist={handleToggleWatchlist}
+              //   showNotification={showNotification}
+              //   hasMore={hasMore}
+              //   isFetchingMore={isFetchingMore}
+              //   onLoadMore={() => setCurrentPage((prev) => prev + 1)}
+              // />
+              <HomePage
+                filters={filters}
+                updateFilters={updateFilters}
+                currentPage={currentPage}
+                updatePage={updatePage}
                 recommendedMovies={recommendedMovies}
                 watchlistMovies={watchlistMovies}
                 watchlistIds={watchlistIds}
-                newMovies={sectionNewMovies}
-                theaterHotMovies={sectionTheaterHotMovies}
-                actionMovies={sectionActionMovies}
-                hasActiveFilters={hasActiveFilters}
-                filters={filters}
-                setFilters={setFilters}
-                filteredMovies={filteredMovies}
                 handleMovieClick={handleMovieClick}
                 handlePlayClick={handlePlayClick}
                 handleToggleWatchlist={handleToggleWatchlist}
                 showNotification={showNotification}
-                hasMore={hasMore}
-                isFetchingMore={isFetchingMore}
-                onLoadMore={() => setCurrentPage((prev) => prev + 1)}
-              />
+                currentUser={currentUser}
+              ></HomePage>
             }
           />
 
