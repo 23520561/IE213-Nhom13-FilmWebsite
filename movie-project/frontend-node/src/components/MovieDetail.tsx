@@ -3,11 +3,6 @@ import {
   Play,
   Plus,
   Check,
-  Star,
-  Eye,
-  Calendar,
-  Clock,
-  Film,
   MessageCircle,
   Heart,
   Send,
@@ -27,8 +22,8 @@ interface MovieDetailProps {
   movie: Movie;
   allMovies: Movie[];
   watchlistIds: string[];
-  onPlayClick: (movieId: string) => void;
-  onToggleWatchlist: (movieId: string) => void;
+  onPlayClick: (movieId: Movie) => void;
+  onToggleWatchlist: (movieId: Movie) => void;
   onMovieClick: (movieId: string) => void;
   onShowNotification: (message: string) => void;
 }
@@ -325,8 +320,8 @@ export default function MovieDetail({
           {/* Core Buttons controls */}
           <div className="flex flex-wrap items-center gap-3">
             <button
-              id={`detail-act-play-${movie.id}`}
-              onClick={() => onPlayClick(movie.id)}
+              id={`detail-act-play-${movie}`}
+              onClick={() => onPlayClick(movie)}
               className={`flex items-center space-x-2 bg-[#ef4444] hover:bg-red-605 text-white rounded-full px-8 py-4 text-sm font-extrabold tracking-widest uppercase transition-all scale-100 active:scale-95 ${styles.glowingButton}`}
             >
               <Play className="h-5 w-5 fill-current ml-0.5" />
@@ -335,7 +330,7 @@ export default function MovieDetail({
 
             <button
               id={`detail-act-save-${movie.id}`}
-              onClick={() => onToggleWatchlist(movie.id)}
+              onClick={() => onToggleWatchlist(movie)}
               className={`flex items-center space-x-1.5 rounded-full px-5 py-4 text-sm font-semibold border transition-all ${
                 isInWatchlist
                   ? "bg-slate-900 border-red-500 text-red-500"

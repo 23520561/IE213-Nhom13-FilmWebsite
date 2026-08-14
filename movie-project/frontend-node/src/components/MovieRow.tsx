@@ -1,4 +1,4 @@
-import React, { useRef, memo } from 'react';
+import { useRef, memo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Movie } from '../types';
 import MovieCard from './MovieCard';
@@ -10,8 +10,8 @@ interface MovieRowProps {
   movies: Movie[];
   watchlistIds: string[];
   onMovieClick: (movieId: string) => void;
-  onPlayClick: (movieId: string) => void;
-  onToggleWatchlist: (movieId: string) => void;
+  onPlayClick: (movieId: Movie) => void;
+  onToggleWatchlist: (movieId: Movie) => void;
 }
 
 function MovieRow({

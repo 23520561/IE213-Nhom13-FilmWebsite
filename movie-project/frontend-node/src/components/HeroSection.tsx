@@ -3,7 +3,6 @@ import {
   Play,
   Plus,
   Check,
-  Star,
   Eye,
   Calendar,
   Clock,
@@ -18,8 +17,8 @@ interface HeroSectionProps {
   movies: Movie[];
   watchlistIds: string[];
   onMovieClick: (movieId: string) => void;
-  onPlayClick: (movieId: string) => void;
-  onToggleWatchlist: (movieId: string) => void;
+  onPlayClick: (movieId: Movie) => void;
+  onToggleWatchlist: (movieId: Movie) => void;
 }
 
 export default function HeroSection({
@@ -149,7 +148,7 @@ export default function HeroSection({
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
                 id={`hero-play-btn-${currentMovie.id}`}
-                onClick={() => onPlayClick(currentMovie.id)}
+                onClick={() => onPlayClick(currentMovie)}
                 className={`flex items-center space-x-2 bg-[#ef4444] hover:bg-red-600 text-white rounded-full px-6 py-3.5 text-sm font-bold tracking-wide transition-all scale-100 active:scale-95 ${styles.glowingButton}`}
               >
                 <Play className="h-4 w-4 fill-current" />
@@ -167,7 +166,7 @@ export default function HeroSection({
 
               <button
                 id={`hero-watchlist-btn-${currentMovie.id}`}
-                onClick={() => onToggleWatchlist(currentMovie.id)}
+                onClick={() => onToggleWatchlist(currentMovie)}
                 className={`flex items-center justify-center p-3.5 rounded-full border transition-all ${
                   isInWatchlist
                     ? "bg-slate-900 border-red-500 text-red-500"

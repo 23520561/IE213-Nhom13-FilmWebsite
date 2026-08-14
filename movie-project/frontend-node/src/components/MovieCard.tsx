@@ -8,8 +8,8 @@ interface MovieCardProps {
   movie: Movie;
   isInWatchlist: boolean;
   onMovieClick: (movieId: string) => void;
-  onPlayClick: (movieId: string) => void;
-  onToggleWatchlist: (movieId: string) => void;
+  onPlayClick: (movieId: Movie) => void;
+  onToggleWatchlist: (movieId: Movie) => void;
 }
 
 function MovieCard({
@@ -21,12 +21,12 @@ function MovieCard({
 }: MovieCardProps) {
   const handleToggleWatchlist = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onToggleWatchlist(movie.id);
+    onToggleWatchlist(movie);
   };
 
   const handlePlayClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onPlayClick(movie.id);
+    onPlayClick(movie);
   };
 
   return (

@@ -1,4 +1,3 @@
-import React from "react";
 import HeroSection from "../components/HeroSection";
 import MovieRow from "../components/MovieRow";
 import MovieCard from "../components/MovieCard";
@@ -16,8 +15,8 @@ interface HomePageProps {
   watchlistMovies: Movie[];
   watchlistIds: string[];
   handleMovieClick: (id: string) => void;
-  handlePlayClick: (id: string) => void;
-  handleToggleWatchlist: (id: string) => void;
+  handlePlayClick: (m: Movie) => void;
+  handleToggleWatchlist: (m: Movie) => void;
   showNotification: (msg: string) => void;
   currentUser: User;
 }

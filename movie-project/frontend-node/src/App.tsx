@@ -39,11 +39,11 @@ import MovieDetailWrapper from "./utils/ MovieDetailWrapper";
 import VideoPlayerWrapper from "./utils/VideoPlayerWrapper";
 import { AdminPage } from "./pages/AdminPage";
 import HomePage from "./pages/HomePage";
+import { normalizeMovie } from "./utils/normalizeMovie";
 
 export default function App() {
   // 1. Khởi tạo danh sách phim là mảng rỗng [] thay vì dùng MOCK_MOVIES
   const [movies, setMovies] = useState<Movie[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
 
   // Khởi tạo State lưu thông tin User hiện tại từ LocalStorage
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -55,66 +55,8 @@ export default function App() {
     }
   });
   const [recommendedMovies, setRecommendedMovies] = useState<Movie[]>([]);
-  // Section-specific lists (server-backed where possible)
-  const [sectionNewMovies, setSectionNewMovies] = useState<Movie[]>([]);
-  const [sectionActionMovies, setSectionActionMovies] = useState<Movie[]>([]);
-  const [sectionTheaterHotMovies, setSectionTheaterHotMovies] = useState<
-    Movie[]
-  >([]);
 
-  // Normalize movie shape for use across multiple effects/components
-  const normalizeMovie = (movie: any): Movie =>
-    ({
-      ...movie,
-      id: movie.id || movie._id,
-      year:
-        movie.releaseYear ||
-        (movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : 1995),
-      views: movie.views || movie.viewCount || 0,
-      category:
-        (Array.isArray(movie.genres) && movie.genres.length > 0
-          ? movie.genres[0].name || movie.genres[0]
-          : movie.category) || "Hành Động",
-      director: movie.director || "Đang cập nhật",
-      actors: Array.isArray(movie.actors) ? movie.actors : ["Đang cập nhật"],
-      originalTitle: movie.originalTitle || movie.title || "",
-      // Support both shapes: { average, count } or numeric average value
-      rating:
-        typeof movie.rating === "number"
-          ? { average: Number(movie.rating), count: 100 }
-          : movie.rating
-            ? {
-                average:
-                  movie.rating.average !== undefined
-                    ? Number(movie.rating.average)
-                    : 8.5,
-                count: movie.rating.count || 100,
-              }
-            : { average: 8.5, count: 100 },
-      imdb:
-        typeof movie.rating === "number"
-          ? Number(movie.rating)
-          : movie.rating?.average !== undefined
-            ? Number(movie.rating.average)
-            : 8.5,
-      poster:
-        movie.poster ||
-        "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&q=80&w=400",
-      backdrop:
-        movie.backdrop ||
-        "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200",
-      videoUrl: movie.videoUrl || movie.trailer || "",
-      // Derive trending flag client-side; isNew will be computed per-list
-      isNew: false,
-      // Trending: simple heuristic based on view count
-      isTrending: (() => {
-        const views = movie.views || movie.viewCount || 0;
-        return Number(views) > 150000;
-      })(),
-      duration: movie.duration || 120,
-    }) as Movie;
-
-  // Filters State
+    // Filters State
   const [filters, setFilters] = useState<FilterState>({
     searchQuery: "",
     category: "Tất Cả",
@@ -129,9 +71,6 @@ export default function App() {
   function updatePage(n: number) {
     setCurrentPage(n);
   }
-  const [hasMore, setHasMore] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const prevFiltersRef = React.useRef(filters); // Dùng để theo dõi khi bộ lọc thay đổi
 
   // Lưu tự động mỗi khi currentUser thay đổi
   useEffect(() => {
@@ -236,215 +175,7 @@ export default function App() {
       mounted = false;
     };
   }, [currentUser]);
-  // 2. Tự động gọi API khi chạy ứng dụng và khi bộ lọc/trang thay đổi
-  useEffect(() => {
-    async function fetchBackendMovies() {
-      try {
-        // Kiểm tra xem người dùng vừa đổi bộ lọc hay vừa bấm Tải thêm
-        const isFilterChanged =
-          prevFiltersRef.current.category !== filters.category ||
-          prevFiltersRef.current.year !== filters.year ||
-          prevFiltersRef.current.searchQuery !== filters.searchQuery;
 
-        let fetchPage = currentPage;
-
-        if (isFilterChanged) {
-          fetchPage = 1;
-          setCurrentPage(1); // Đưa số trang về 1
-          prevFiltersRef.current = filters; // Cập nhật bộ theo dõi lọc
-          setLoading(true); // Hiển thị trạng thái tải dữ liệu lớn
-        } else {
-          if (fetchPage > 1) setIsFetchingMore(true);
-        }
-
-        const queryParams: any = {
-          limit: 50,
-          page: fetchPage,
-        };
-
-        if (filters.category !== "Tất Cả")
-          queryParams.category = filters.category;
-        if (filters.year !== "Tất Cả") queryParams.year = filters.year;
-        if (filters.searchQuery.trim() !== "")
-          queryParams.searchQuery = filters.searchQuery;
-
-        console.log("Gửi yêu cầu lọc tới Backend với tham số:", queryParams);
-        const data = (await graphqlGetMovies(queryParams)) as any;
-        const rawMovies = data?.movies || (Array.isArray(data) ? data : []);
-
-        // Nếu dữ liệu trả về ít hơn 50 phim nghĩa là database đã hết phim để tải tiếp
-        if (rawMovies.length < 50) {
-          setHasMore(false);
-        } else {
-          setHasMore(true);
-        }
-
-        const formattedMovies: Movie[] = rawMovies.map((movie: any) =>
-          normalizeMovie(movie),
-        );
-
-        // Compute most recent release year across fetched movies and mark `isNew`
-        const maxYear =
-          formattedMovies.reduce(
-            (acc, m) => Math.max(acc, Number(m.year || 0)),
-            0,
-          ) || undefined;
-        const finalMovies: Movie[] = formattedMovies.map((m) => ({
-          ...m,
-          isNew: maxYear ? Number(m.year) === Number(maxYear) : false,
-        }));
-
-        // Quyết định làm sạch danh sách hay nối tiếp mảng phim
-        if (fetchPage === 1) {
-          setMovies(finalMovies);
-        } else {
-          setMovies((prev) => {
-            const existingIds = new Set(prev.map((m: any) => m.id));
-            const uniqueNewMovies = finalMovies.filter(
-              (m: any) => !existingIds.has(m.id),
-            );
-            return [...prev, ...uniqueNewMovies];
-          });
-        }
-
-        // Populate section-level lists from server where possible
-        try {
-          const [featuredSrv, topRatedSrv, topNewSrv, actionSrv] =
-            await Promise.all([
-              graphqlGetFeaturedMovies(12),
-              graphqlGetTopRatedMovies(12),
-              graphqlGetTopNewMovies(12),
-              // action uses GetMovies as server may not provide dedicated endpoint
-              graphqlGetMovies({ limit: 12, page: 1, category: "Hành Động" }),
-            ]);
-          const normalizedFeatured = (featuredSrv || []).map((mm: any) =>
-            normalizeMovie(mm),
-          );
-          const normalizedTopRated = (topRatedSrv || []).map((mm: any) =>
-            normalizeMovie(mm),
-          );
-          const normalizedAction = (actionSrv || []).map((mm: any) =>
-            normalizeMovie(mm),
-          );
-
-          const normalizedTopNew = (topNewSrv || []).map((mm: any) =>
-            normalizeMovie(mm),
-          );
-
-          try {
-            // debug: log first ids to help diagnose identical lists
-            // eslint-disable-next-line no-console
-            console.log(
-              "[SECTION DEBUG] featured ids:",
-              normalizedFeatured.map((m) => m.id).slice(0, 5),
-            );
-            // eslint-disable-next-line no-console
-            console.log(
-              "[SECTION DEBUG] topNew ids:",
-              normalizedTopNew.map((m) => m.id).slice(0, 5),
-            );
-            // eslint-disable-next-line no-console
-            console.log(
-              "[SECTION DEBUG] topRated ids:",
-              normalizedTopRated.map((m) => m.id).slice(0, 5),
-            );
-            // eslint-disable-next-line no-console
-            console.log(
-              "[SECTION DEBUG] action ids:",
-              normalizedAction.map((m) => m.id).slice(0, 5),
-            );
-          } catch (e) {
-            /* ignore */
-          }
-
-          setSectionNewMovies(
-            // prefer server-provided topNew, otherwise most-recent releaseYear
-            (normalizedTopNew.length > 0
-              ? normalizedTopNew
-              : finalMovies.filter((m) => m.isNew)
-            ).slice(0, 12),
-          );
-          // Theater hot should use server topRated when available
-          const theaterSource =
-            normalizedTopRated.length > 0 ? normalizedTopRated : finalMovies;
-          setSectionTheaterHotMovies(theaterSource.slice(0, 12));
-          setSectionActionMovies(
-            (normalizedAction.length > 0
-              ? normalizedAction
-              : formattedMovies.filter(
-                  (m) => m.category === "Hành Động" || m.category === "Action",
-                )
-            ).slice(0, 12),
-          );
-        } catch (err) {
-          // fallback to client-side slicing
-          // compute isNew based on most recent releaseYear if not computed
-          const fallbackMaxYear =
-            formattedMovies.reduce(
-              (acc, m) => Math.max(acc, Number(m.year || 0)),
-              0,
-            ) || undefined;
-          const fallbackMovies = formattedMovies.map((m) => ({
-            ...m,
-            isNew: fallbackMaxYear
-              ? Number(m.year) === Number(fallbackMaxYear)
-              : false,
-          }));
-
-          setSectionNewMovies(
-            fallbackMovies.filter((m) => m.isNew).slice(0, 12),
-          );
-          setSectionTheaterHotMovies(
-            fallbackMovies.filter((m) => (m.views ?? 0) > 180000).slice(0, 12),
-          );
-          setSectionActionMovies(
-            fallbackMovies
-              .filter(
-                (m) => m.category === "Hành Động" || m.category === "Action",
-              )
-              .slice(0, 12),
-          );
-        }
-        // If user is logged in, fetch personalized recommendations
-        try {
-          if (currentUser && (currentUser as any).id) {
-            const recs = (await graphqlGetUserRecommendations(
-              (currentUser as any).id,
-              8,
-            )) as any[];
-            // convert recommendations into Movie[] (take rec.movie)
-            const recMovies: Movie[] = recs
-              .map((r) => r.movie)
-              .filter(Boolean)
-              .map((m: any) => normalizeMovie(m));
-            setRecommendedMovies(recMovies);
-            try {
-              // debug: inspect recommended payload structure in browser console
-              // eslint-disable-next-line no-console
-              console.log(
-                "[DEBUG] recommendedMovies (fetch):",
-                recMovies.slice(0, 8),
-              );
-            } catch (e) {
-              /* ignore */
-            }
-          } else {
-            setRecommendedMovies([]);
-          }
-        } catch (err) {
-          console.error("Failed to load recommendations", err);
-          setRecommendedMovies([]);
-        }
-      } catch (error) {
-        console.error("Không thể kết nối với Backend hoặc lỗi GraphQL:", error);
-      } finally {
-        setLoading(false);
-        setIsFetchingMore(false);
-      }
-    }
-
-    fetchBackendMovies();
-  }, [filters, currentPage]);
   // Watch list state loaded from localStorage
   const [watchlistIds, setWatchlistIds] = useState<string[]>(() => {
     try {
@@ -466,11 +197,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("cinemax_watchlist", JSON.stringify(watchlistIds));
   }, [watchlistIds]);
-
-  // Persistence for movies list
-  useEffect(() => {
-    localStorage.setItem("cinemax_movies_persist", JSON.stringify(movies));
-  }, [movies]);
 
   const showNotification = (message: string) => {
     setNotification(message);
@@ -674,48 +400,34 @@ export default function App() {
   }, [movies]);
 
   // Categorizations lists for home layout view
-  const newMovies = [...movies].sort((a, b) => {
-    const ay = Number(a.year || a.releaseYear || 0);
-    const by = Number(b.year || b.releaseYear || 0);
-    return by - ay;
-  });
-  const actionMovies = movies.filter(
-    (m) => m.category === "Hành Động" || m.category === "Action",
-  );
-  const theaterHotMovies = movies.filter((m) => (m.views ?? 0) > 180000);
+  // const newMovies = [...movies].sort((a, b) => {
+  //   const ay = Number(a.year || a.releaseYear || 0);
+  //   const by = Number(b.year || b.releaseYear || 0);
+  //   return by - ay;
+  // });
+  // const actionMovies = movies.filter(
+  //   (m) => m.category === "Hành Động" || m.category === "Action",
+  // );
+  // const theaterHotMovies = movies.filter((m) => (m.views ?? 0) > 180000);
 
   // Active movie entity
   // const activeMovie = movies.find((m) => m.id === selectedMovieId) || movies[0];
 
-  const hasActiveFilters =
-    filters.searchQuery.trim().length > 0 ||
-    filters.category !== "Tất Cả" ||
-    filters.year !== "Tất Cả";
+  // const hasActiveFilters =
+  //   filters.searchQuery.trim().length > 0 ||
+  //   filters.category !== "Tất Cả" ||
+  //   filters.year !== "Tất Cả";
 
   // Tự động quay về trang chủ CHỈ KHI người dùng tương tác thay đổi bộ lọc
-  useEffect(() => {
-    // Nếu có bộ lọc và hiện tại không ở trang chủ thì mới đưa về
-    if (hasActiveFilters && window.location.pathname !== "/") {
-      navigate("/");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  }, [filters]);
+  // useEffect(() => {
+  //   // Nếu có bộ lọc và hiện tại không ở trang chủ thì mới đưa về
+  //   if (hasActiveFilters && window.location.pathname !== "/") {
+  //     navigate("/");
+  //     window.scrollTo({ top: 0, behavior: "smooth" });
+  //   }
+  // }, [filters]);
 
-  // Global safeguard: prevent native form submissions from causing full-page reloads
-  // This ensures any accidental submit (e.g., button without type inside a form)
-  // won't trigger a navigation; React onSubmit handlers still run.
-  useEffect(() => {
-    const onSubmit = (e: Event) => {
-      try {
-        e.preventDefault();
-      } catch (err) {
-        /* ignore */
-      }
-    };
-    document.addEventListener("submit", onSubmit, true);
-    return () => document.removeEventListener("submit", onSubmit, true);
-  }, []);
-  return (
+    return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100 flex flex-col font-sans select-none antialiased">
       {/* Toast Alert pop notification */}
       {notification && (
