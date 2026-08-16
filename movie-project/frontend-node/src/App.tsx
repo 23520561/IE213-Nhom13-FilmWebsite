@@ -1,433 +1,46 @@
-import React, { useState, useEffect } from "react";
-import { Routes, Route, useParams, useNavigate } from "react-router-dom"; // Import các công cụ quản lý URL
-import { Movie, FilterState, User } from "./types";
+import { Routes, Route, useNavigate } from "react-router-dom"; // Import các công cụ quản lý URL
 import Header from "./components/Header";
-import MovieDetail from "./components/MovieDetail";
-import VideoPlayer from "./components/VideoPlayer";
-import HomeView from "./components/HomeView";
-import {
-  graphqlGetMovies,
-  graphqlGetMovieById,
-  graphqlToggleWatchlist,
-  graphqlGetUserRecommendations,
-  graphqlGetFeaturedMovies,
-  graphqlGetTopRatedMovies,
-  graphqlGetTopNewMovies,
-  graphqlCreateWatchHistory,
-  graphqlUpdateWatchHistory,
-  graphqlGetAllComments,
-  graphqlDeleteComment,
-  graphqlUpdateUserStatus,
-} from "./services/graphql";
-import {
-  Bookmark,
-  Star,
-  Play,
-  PlayCircle,
-  Eye,
-  Calendar,
-  Grid2X2,
-  ArrowRightLeft,
-  RefreshCw,
-  Layers,
-  Sparkles,
-  Film,
-  Shield,
-} from "lucide-react";
-import styles from "./styles.module.css";
-import MovieDetailWrapper from "./utils/ MovieDetailWrapper";
+import { Film, Shield } from "lucide-react";
+import MovieDetailWrapper from "./utils/MovieDetailWrapper";
 import VideoPlayerWrapper from "./utils/VideoPlayerWrapper";
 import { AdminPage } from "./pages/AdminPage";
 import HomePage from "./pages/HomePage";
-import { normalizeMovie } from "./utils/normalizeMovie";
+import useFilter from "./hooks/useFilter";
+import useWatchlist from "./hooks/useWatchlist";
+import useRecommendations from "./hooks/useRecommendations";
+import useAuth from "./hooks/useAuth";
+import useNotification from "./hooks/useNotification";
 
 export default function App() {
-  // 1. Khởi tạo danh sách phim là mảng rỗng [] thay vì dùng MOCK_MOVIES
-  const [movies, setMovies] = useState<Movie[]>([]);
-
-  // Khởi tạo State lưu thông tin User hiện tại từ LocalStorage
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    try {
-      const savedUser = localStorage.getItem("cinemax_user_info");
-      return savedUser ? JSON.parse(savedUser) : null;
-    } catch {
-      return null;
-    }
-  });
-  const [recommendedMovies, setRecommendedMovies] = useState<Movie[]>([]);
-
-    // Filters State
-  const [filters, setFilters] = useState<FilterState>({
-    searchQuery: "",
-    category: "Tất Cả",
-    year: "Tất Cả",
-  });
-
-  const [currentPage, setCurrentPage] = useState(1);
-  function updateFilters(query: FilterState) {
-    setFilters(query);
-    setCurrentPage(1);
-  }
-  function updatePage(n: number) {
-    setCurrentPage(n);
-  }
-
-  // Lưu tự động mỗi khi currentUser thay đổi
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem("cinemax_user_info", JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem("cinemax_user_info");
-    }
-  }, [currentUser]);
-
-  // Khi currentUser thay đổi (login/logout), gọi API gợi ý ngay lập tức
-  useEffect(() => {
-    let mounted = true;
-    async function loadRecommendations() {
-      if (!currentUser) {
-        if (mounted) setRecommendedMovies([]);
-        return;
-      }
-      try {
-        const uid =
-          (currentUser as any)?.id || (currentUser as any)?._id || null;
-        if (!uid) {
-          if (mounted) setRecommendedMovies([]);
-          return;
-        }
-        const recs = (await graphqlGetUserRecommendations(uid, 8)) as any[];
-        const recMovies: Movie[] = (recs || [])
-          .map((r) => r && r.movie)
-          .filter(Boolean)
-          .map((m: any) => normalizeMovie(m));
-
-        if (mounted) {
-          setRecommendedMovies(recMovies);
-          try {
-            // debug: inspect recommended payload structure in browser console
-            // eslint-disable-next-line no-console
-            console.log(
-              "[DEBUG] recommendedMovies (auth-change):",
-              recMovies.slice(0, 8),
-            );
-          } catch (e) {
-            /* ignore */
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load recommendations on auth change:", err);
-        if (mounted) setRecommendedMovies([]);
-      }
-    }
-
-    loadRecommendations();
-    // After login, attempt to sync any locally saved watch history entries
-    async function syncLocalWatchHistory() {
-      if (!currentUser) return;
-      try {
-        const raw = localStorage.getItem("cinemax_local_watchhistory");
-        if (!raw) return;
-        const entries: Array<any> = JSON.parse(raw || "[]");
-        if (!Array.isArray(entries) || entries.length === 0) return;
-
-        const mapRaw = localStorage.getItem("cinemax_watchhistory_map") || "{}";
-        const idMap = JSON.parse(mapRaw || "{}");
-
-        for (const e of entries) {
-          try {
-            // If already mapped, try update, else create
-            if (idMap[e.movieId]) {
-              // update via API if possible
-              await graphqlUpdateWatchHistory(
-                idMap[e.movieId],
-                e.watchedTime,
-                e.duration,
-                e.isFinished,
-              );
-            } else {
-              const res = await graphqlCreateWatchHistory(
-                e.movieId,
-                e.watchedTime || 0,
-                e.duration || 0,
-                !!e.isFinished,
-              );
-              if (res && res.id) {
-                idMap[e.movieId] = res.id;
-              }
-            }
-          } catch (err) {
-            // ignore single entry errors
-            console.warn("Failed to sync watch history entry", e.movieId, err);
-          }
-        }
-
-        // Persist mapping and clear local pending entries
-        localStorage.setItem("cinemax_watchhistory_map", JSON.stringify(idMap));
-        localStorage.removeItem("cinemax_local_watchhistory");
-      } catch (err) {
-        console.error("Failed to sync local watch history:", err);
-      }
-    }
-
-    syncLocalWatchHistory();
-    return () => {
-      mounted = false;
-    };
-  }, [currentUser]);
-
-  // Watch list state loaded from localStorage
-  const [watchlistIds, setWatchlistIds] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem("cinemax_watchlist");
-      if (!saved) return [];
-      const parsed = JSON.parse(saved);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
-
   const navigate = useNavigate();
+  const {
+    movies,
+    hasMore,
+    isFetchingMore,
+    updateFilters,
+    updatePage,
+    filters,
+    currentPage,
+    updateMovies,
+    handleMovieClick,
+    handlePlayClick
+  } = useFilter();
 
-  // Notification message alerts state
-  const [notification, setNotification] = useState<string | null>(null);
-
-  // Persistence for user bookmarking list
-  useEffect(() => {
-    localStorage.setItem("cinemax_watchlist", JSON.stringify(watchlistIds));
-  }, [watchlistIds]);
-
-  const showNotification = (message: string) => {
-    setNotification(message);
-    const soundTimeout = setTimeout(() => {
-      setNotification(null);
-    }, 3500);
-    return () => clearTimeout(soundTimeout);
-  };
-  // Watchlist movies matching filtered list
+  const {currentUser, updateUser} = useAuth()
+  const {recommendedMovies} = useRecommendations(currentUser);
+  const {notification, showNotification} = useNotification()
+  const { watchlistIds,  handleToggleWatchlist } = useWatchlist(
+    currentUser,
+    movies,
+    showNotification,
+  );
   const watchlistMovies = movies.filter((m) => watchlistIds.includes(m.id));
-
-  const handleToggleWatchlist = (movieId: string) => {
-    // Find the movie across known lists (main list, recommended, or section lists)
-    const movieObj =
-      movies.find((m) => m.id === movieId) ||
-      recommendedMovies.find((m) => m.id === movieId) ||
-      sectionNewMovies.find((m) => m.id === movieId) ||
-      sectionActionMovies.find((m) => m.id === movieId) ||
-      sectionTheaterHotMovies.find((m) => m.id === movieId) ||
-      watchlistMovies.find((m) => m.id === movieId) ||
-      // last-resort: minimal object so notifications still show
-      ({ id: movieId, title: "(Phim)" } as Movie);
-
-    // helper: ensure movie object exists in main `movies` state so watchlist UI can render it
-    const ensureMovieInState = (m: Movie | undefined) => {
-      if (!m) return;
-      if (!movies.some((x) => x.id === m.id)) {
-        setMovies((prev) => [...prev, m]);
-      }
-    };
-
-    // If user is logged in, attempt server-side toggle; otherwise fall back to localStorage
-    if (currentUser) {
-      // currentUser may come from different shapes depending on auth flow; normalize to string id
-      const uid =
-        (currentUser as any)?.id ||
-        (currentUser as any)?._id ||
-        String((currentUser as any)?.numerical_id || "");
-      if (!uid) {
-        // fallback to local-only
-        if (watchlistIds.includes(movieId)) {
-          setWatchlistIds((prev) => prev.filter((id) => id !== movieId));
-          showNotification(
-            `Đã loại bỏ "${movieObj.title}" khỏi Danh sách yêu thích.`,
-          );
-        } else {
-          setWatchlistIds((prev) => [...prev, movieId]);
-          showNotification(
-            `Đã thêm "${movieObj.title}" vào Danh sách yêu thích thành công!`,
-          );
-        }
-        return;
-      }
-      const currentlyIn = watchlistIds.includes(movieId);
-      graphqlToggleWatchlist(uid, movieId)
-        .then((res) => {
-          if (res && res.success) {
-            setWatchlistIds(res.watchlistIds || []);
-            const added =
-              (res.watchlistIds || []).includes(movieId) && !currentlyIn;
-            if (added) ensureMovieInState(movieObj as Movie);
-            const action = (res.watchlistIds || []).includes(movieId)
-              ? "Thêm"
-              : "Loại bỏ";
-            showNotification(
-              `${action} "${movieObj.title}" vào Danh sách yêu thích.`,
-            );
-          } else {
-            // fallback to local
-            if (currentlyIn) {
-              setWatchlistIds((prev) => prev.filter((id) => id !== movieId));
-              showNotification(
-                `Đã loại bỏ "${movieObj.title}" khỏi Danh sách yêu thích.`,
-              );
-            } else {
-              setWatchlistIds((prev) => [...prev, movieId]);
-              ensureMovieInState(movieObj as Movie);
-              showNotification(
-                `Đã thêm "${movieObj.title}" vào Danh sách yêu thích thành công!`,
-              );
-            }
-          }
-        })
-        .catch(() => {
-          // network or server error -> fallback to local behavior
-          if (currentlyIn) {
-            setWatchlistIds((prev) => prev.filter((id) => id !== movieId));
-            showNotification(
-              `Đã loại bỏ "${movieObj.title}" khỏi Danh sách yêu thích.`,
-            );
-          } else {
-            setWatchlistIds((prev) => [...prev, movieId]);
-            ensureMovieInState(movieObj as Movie);
-            showNotification(
-              `Đã thêm "${movieObj.title}" vào Danh sách yêu thích thành công!`,
-            );
-          }
-        });
-      return;
-    }
-
-    // Local-only behavior
-    const currentlyInLocal = watchlistIds.includes(movieId);
-    if (currentlyInLocal) {
-      setWatchlistIds((prev) => prev.filter((id) => id !== movieId));
-      showNotification(
-        `Đã loại bỏ "${movieObj.title}" khỏi Danh sách yêu thích.`,
-      );
-    } else {
-      setWatchlistIds((prev) => [...prev, movieId]);
-      ensureMovieInState(movieObj as Movie);
-      showNotification(
-        `Đã thêm "${movieObj.title}" vào Danh sách yêu thích thành công!`,
-      );
-    }
-  };
-
-  const handleMovieClick = (movieId: string) => {
-    navigate(`/phim/${movieId}`); // Thay đổi URL thành /phim/id-cua-phim
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const handlePlayClick = (movieId: string) => {
-    // Record watch start (fire-and-forget). Prefer movie duration from known lists.
-    try {
-      const m =
-        movies.find((m) => m.id === movieId) ||
-        recommendedMovies.find((m) => m.id === movieId) ||
-        sectionNewMovies.find((m) => m.id === movieId) ||
-        sectionActionMovies.find((m) => m.id === movieId) ||
-        sectionTheaterHotMovies.find((m) => m.id === movieId);
-      const duration =
-        (m && (m.duration || m.duration === 0) ? Number(m.duration) : 0) || 0;
-      // fire-and-forget
-      graphqlCreateWatchHistory(movieId, 0, duration, false)
-        .then((res) => {
-          try {
-            if (res && res.id) {
-              const mapRaw =
-                localStorage.getItem("cinemax_watchhistory_map") || "{}";
-              const idMap = JSON.parse(mapRaw || "{}");
-              idMap[movieId] = res.id;
-              localStorage.setItem(
-                "cinemax_watchhistory_map",
-                JSON.stringify(idMap),
-              );
-            }
-          } catch (e) {
-            /* ignore */
-          }
-        })
-        .catch(() => {
-          // Save pending local entry to be synced on login
-          try {
-            const raw =
-              localStorage.getItem("cinemax_local_watchhistory") || "[]";
-            const arr = JSON.parse(raw || "[]");
-            arr.push({ movieId, watchedTime: 0, duration, isFinished: false });
-            localStorage.setItem(
-              "cinemax_local_watchhistory",
-              JSON.stringify(arr),
-            );
-          } catch (e) {
-            /* ignore */
-          }
-        });
-    } catch (e) {
-      /* ignore */
-    }
-    navigate(`/xem-phim/${movieId}`); // Thay đổi URL thành /xem-phim/id-cua-phim
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
 
   const handleGoHome = () => {
     navigate("/"); // Trở về URL trang chủ
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-
-  // Determine active dynamic film list depending on multi-dimensional filters
-  const filteredMovies = movies;
-
-  // Sanitize stored watchlist ids against currently loaded movies
-  useEffect(() => {
-    if (!movies || movies.length === 0) return;
-    setWatchlistIds((prev) => {
-      const filtered = prev.filter((id) => movies.some((m) => m.id === id));
-      if (filtered.length !== prev.length) {
-        // persist cleaned list
-        localStorage.setItem("cinemax_watchlist", JSON.stringify(filtered));
-        // Inform user only if notification system is available
-        try {
-          showNotification(
-            "Đã loại bỏ mục không hợp lệ trong Danh sách yêu thích.",
-          );
-        } catch (e) {
-          // ignore if not ready
-        }
-      }
-      return filtered;
-    });
-  }, [movies]);
-
-  // Categorizations lists for home layout view
-  // const newMovies = [...movies].sort((a, b) => {
-  //   const ay = Number(a.year || a.releaseYear || 0);
-  //   const by = Number(b.year || b.releaseYear || 0);
-  //   return by - ay;
-  // });
-  // const actionMovies = movies.filter(
-  //   (m) => m.category === "Hành Động" || m.category === "Action",
-  // );
-  // const theaterHotMovies = movies.filter((m) => (m.views ?? 0) > 180000);
-
-  // Active movie entity
-  // const activeMovie = movies.find((m) => m.id === selectedMovieId) || movies[0];
-
-  // const hasActiveFilters =
-  //   filters.searchQuery.trim().length > 0 ||
-  //   filters.category !== "Tất Cả" ||
-  //   filters.year !== "Tất Cả";
-
-  // Tự động quay về trang chủ CHỈ KHI người dùng tương tác thay đổi bộ lọc
-  // useEffect(() => {
-  //   // Nếu có bộ lọc và hiện tại không ở trang chủ thì mới đưa về
-  //   if (hasActiveFilters && window.location.pathname !== "/") {
-  //     navigate("/");
-  //     window.scrollTo({ top: 0, behavior: "smooth" });
-  //   }
-  // }, [filters]);
-
-    return (
+  return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100 flex flex-col font-sans select-none antialiased">
       {/* Toast Alert pop notification */}
       {notification && (
@@ -446,13 +59,13 @@ export default function App() {
       {/* Shared Modular Header component */}
       <Header
         currentUser={currentUser}
-        onAuthChange={setCurrentUser}
+        onAuthChange={updateUser}
         filters={filters}
         updateFilters={updateFilters}
         bookmarkCount={watchlistMovies.length}
         onGoHome={handleGoHome}
         onGoWatchlist={() => {
-          setFilters({
+          updateFilters({
             searchQuery: "",
             category: "Tất Cả",
             year: "Tất Cả",
@@ -485,26 +98,6 @@ export default function App() {
           <Route
             path="/"
             element={
-              // <HomeView
-              //   movies={movies}
-              //   recommendedMovies={recommendedMovies}
-              //   watchlistMovies={watchlistMovies}
-              //   watchlistIds={watchlistIds}
-              //   newMovies={sectionNewMovies}
-              //   theaterHotMovies={sectionTheaterHotMovies}
-              //   actionMovies={sectionActionMovies}
-              //   hasActiveFilters={hasActiveFilters}
-              //   filters={filters}
-              //   setFilters={setFilters}
-              //   filteredMovies={filteredMovies}
-              //   handleMovieClick={handleMovieClick}
-              //   handlePlayClick={handlePlayClick}
-              //   handleToggleWatchlist={handleToggleWatchlist}
-              //   showNotification={showNotification}
-              //   hasMore={hasMore}
-              //   isFetchingMore={isFetchingMore}
-              //   onLoadMore={() => setCurrentPage((prev) => prev + 1)}
-              // />
               <HomePage
                 filters={filters}
                 updateFilters={updateFilters}
@@ -518,6 +111,9 @@ export default function App() {
                 handleToggleWatchlist={handleToggleWatchlist}
                 showNotification={showNotification}
                 currentUser={currentUser}
+                movies={movies}
+                hasMore={hasMore}
+                isFetchingMore={isFetchingMore}
               ></HomePage>
             }
           />
@@ -527,7 +123,6 @@ export default function App() {
             path="/phim/:id"
             element={
               <MovieDetailWrapper
-                movies={movies}
                 watchlistIds={watchlistIds}
                 handlePlayClick={handlePlayClick}
                 handleToggleWatchlist={handleToggleWatchlist}
@@ -538,16 +133,13 @@ export default function App() {
           />
 
           {/* 3. ĐƯỜNG DẪN TRÌNH PHÁT VIDEO */}
-          <Route
-            path="/xem-phim/:id"
-            element={<VideoPlayerWrapper movies={movies} />}
-          />
+          <Route path="/xem-phim/:id" element={<VideoPlayerWrapper />} />
           <Route
             path="/admin/*"
             element={
               <AdminPage
                 movies={movies}
-                setMovies={setMovies}
+                setMovies={updateMovies}
                 showNotification={showNotification}
                 currentUser={currentUser}
               />
@@ -588,7 +180,7 @@ export default function App() {
                 <li>
                   <button
                     onClick={() => {
-                      setFilters((p) => ({ ...p, category: "Action" }));
+                      updateFilters({ ...filters, category: "Action" });
                       handleGoHome();
                     }}
                     className="hover:text-red-500 transition-colors"
@@ -599,7 +191,7 @@ export default function App() {
                 <li>
                   <button
                     onClick={() => {
-                      setFilters((p) => ({ ...p, category: "Adventure" }));
+                      updateFilters({ ...filters, category: "Adventure" });
                       handleGoHome();
                     }}
                     className="hover:text-red-500 transition-colors"
@@ -610,7 +202,7 @@ export default function App() {
                 <li>
                   <button
                     onClick={() => {
-                      setFilters((p) => ({ ...p, category: "History" }));
+                      updateFilters({ ...filters, category: "History" });
                       handleGoHome();
                     }}
                     className="hover:text-red-500 transition-colors"
@@ -621,7 +213,7 @@ export default function App() {
                 <li>
                   <button
                     onClick={() => {
-                      setFilters((p) => ({ ...p, category: "Animation" }));
+                      updateFilters({ ...filters, category: "Animation" });
                       handleGoHome();
                     }}
                     className="hover:text-red-500 transition-colors"

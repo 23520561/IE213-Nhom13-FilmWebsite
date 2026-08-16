@@ -10,11 +10,10 @@ import {
   graphqlUpdateMovie,
   graphqlUpdateUserStatus,
 } from "@/src/services/graphql";
-import { a } from "motion/react-client";
 
 interface AdminDashboardProps {
   movies: Movie[];
-  setMovies: React.Dispatch<React.SetStateAction<Movie[]>>;
+  setMovies: (m:Movie[])=>void;
   showNotification: (msg: string) => void;
   currentUser: any;
 }
@@ -84,7 +83,7 @@ export function AdminPage({
     try {
       showNotification("Đang thêm phim mới...");
       const createdMovie = await graphqlCreateMovie(newDoc);
-      setMovies((prev) => [{ ...newDoc, id: createdMovie.id }, ...prev]);
+      setMovies([{ ...newDoc, id: createdMovie.id }, ...movies]);
       showNotification(`Đã thêm thành công: "${newDoc.title}"`);
     } catch (error: any) {
       showNotification(error.message || "Lỗi khi thêm phim.");
@@ -95,8 +94,7 @@ export function AdminPage({
     try {
       showNotification("Đang lưu thay đổi...");
       await graphqlUpdateMovie(id, updatedData);
-      setMovies((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, ...updatedData } : m)),
+      setMovies(movies.map((m) => (m.id === id ? { ...m, ...updatedData } : m)),
       );
       showNotification("Đã cập nhật phim!");
     } catch (error: any) {
@@ -109,7 +107,7 @@ export function AdminPage({
     try {
       showNotification("Đang thực hiện xóa...");
       await graphqlDeleteMovie(id);
-      setMovies((prev) => prev.filter((m) => m.id !== id));
+      setMovies(movies.filter((m) => m.id !== id));
       showNotification("Đã xóa phim thành công.");
     } catch (error: any) {
       showNotification(error.message || "Lỗi khi xóa phim.");
@@ -144,7 +142,6 @@ export function AdminPage({
     }
   };
 
-  console.log("ok");
   return (
     <div className="flex bg-[#0f172a] text-slate-100 min-h-screen font-sans overflow-hidden text-left fixed inset-0 z-50">
       <AdminSidebar

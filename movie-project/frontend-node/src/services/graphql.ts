@@ -492,9 +492,6 @@ export async function graphqlGetTopNewMovies(limit = 8) {
   }
   try {
     const data = await executeGraphQL<Response>(GET_TOP_NEW_MOVIES, { limit });
-    // debug
-    // eslint-disable-next-line no-console
-    console.debug("[graphql] GET_TOP_NEW_MOVIES response ->", data);
     return (data && data.topNewMovies) || [];
   } catch (err) {
     console.error("graphqlGetTopNewMovies failed:", err);

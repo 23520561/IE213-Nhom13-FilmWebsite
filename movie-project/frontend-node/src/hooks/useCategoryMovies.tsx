@@ -1,4 +1,4 @@
-import { useEffect,  useState } from "react";
+import { useEffect, useState } from "react";
 import { normalizeMovie } from "../utils/normalizeMovie";
 import {
   graphqlGetFeaturedMovies,
@@ -9,7 +9,7 @@ import {
 } from "../services/graphql";
 import { Movie, User } from "../types";
 
-const useCategoryMovies = function (currentUser:User|null) {
+const useCategoryMovies = function (currentUser: User | null) {
   const [recommendedMovies, setRecommendedMovies] = useState<Movie[]>([]);
   // Section-specific lists (server-backed where possible)
   const [sectionNewMovies, setSectionNewMovies] = useState<Movie[]>([]);
@@ -49,42 +49,35 @@ const useCategoryMovies = function (currentUser:User|null) {
     }
     fetchData();
   }, []);
-	useEffect(()=>{
-		async function fetchData(){
-try {
-          if (currentUser && (currentUser as any).id) {
-            const recs = (await graphqlGetUserRecommendations(
-              (currentUser as any).id,
-              8,
-            )) as any[];
-            // convert recommendations into Movie[] (take rec.movie)
-            const recMovies: Movie[] = recs
-              .map((r) => r.movie)
-              .filter(Boolean)
-              .map((m: any) => normalizeMovie(m));
-            setRecommendedMovies(recMovies);
-            try {
-              // debug: inspect recommended payload structure in browser console
-              // eslint-disable-next-line no-console
-              console.log(
-                "[DEBUG] recommendedMovies (fetch):",
-                recMovies.slice(0, 8),
-              );
-            } catch (e) {
-              /* ignore */
-            }
-          } else {
-            setRecommendedMovies([]);
-          }
-        } catch (err) {
-          console.error("Failed to load recommendations", err);
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        if (currentUser && (currentUser as any).id) {
+          const recs = (await graphqlGetUserRecommendations(
+            (currentUser as any).id,
+            8,
+          )) as any[];
+          // convert recommendations into Movie[] (take rec.movie)
+          const recMovies: Movie[] = recs
+            .map((r) => r.movie)
+            .filter(Boolean)
+            .map((m: any) => normalizeMovie(m));
+          setRecommendedMovies(recMovies);
+        } else {
           setRecommendedMovies([]);
         }
-
-		}
-		fetchData()
-
-	}, [currentUser])
-  return {recommendedMovies, sectionActionMovies, sectionTheaterHotMovies, sectionNewMovies};
+      } catch (err) {
+        console.error("Failed to load recommendations", err);
+        setRecommendedMovies([]);
+      }
+    }
+    fetchData();
+  }, [currentUser]);
+  return {
+    recommendedMovies,
+    sectionActionMovies,
+    sectionTheaterHotMovies,
+    sectionNewMovies,
+  };
 };
 export default useCategoryMovies;

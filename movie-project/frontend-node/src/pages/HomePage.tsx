@@ -19,6 +19,9 @@ interface HomePageProps {
   handleToggleWatchlist: (m: Movie) => void;
   showNotification: (msg: string) => void;
   currentUser: User;
+  movies: Movie[]; 
+  hasMore: boolean; 
+  isFetchingMore: boolean;
 }
 
 export default function HomePage({
@@ -33,15 +36,16 @@ export default function HomePage({
   handlePlayClick,
   handleToggleWatchlist,
   showNotification,
-  currentUser
+  currentUser,
+  movies,
+  hasMore,
+  isFetchingMore
 }: HomePageProps) {
-  const {movies, hasMore, isFetchingMore} = useFilter(filters, currentPage)
   const {sectionNewMovies: newMovies, sectionTheaterHotMovies: theaterHotMovies, sectionActionMovies: actionMovies} = useCategoryMovies(currentUser)
   const hasActiveFilters =
     filters.searchQuery.trim().length > 0 ||
     filters.category !== "Tất Cả" ||
     filters.year !== "Tất Cả";
-  console.log(hasActiveFilters, filters)
   function onLoadMore(){
     updatePage(currentPage+1)
   }

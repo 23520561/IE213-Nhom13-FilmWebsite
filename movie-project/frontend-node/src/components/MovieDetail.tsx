@@ -1,12 +1,5 @@
-import React, { useState } from "react";
-import {
-  Play,
-  Plus,
-  Check,
-  MessageCircle,
-  Heart,
-  Send,
-} from "lucide-react";
+import React, { useEffect,  useState } from "react";
+import { Play, Plus, Check, MessageCircle, Heart, Send } from "lucide-react";
 import { Movie, Comment } from "../types";
 import {
   graphqlGetMovieComments,
@@ -20,7 +13,6 @@ import userIcon from "../assets/images/user.svg";
 
 interface MovieDetailProps {
   movie: Movie;
-  allMovies: Movie[];
   watchlistIds: string[];
   onPlayClick: (movieId: Movie) => void;
   onToggleWatchlist: (movieId: Movie) => void;
@@ -30,13 +22,13 @@ interface MovieDetailProps {
 
 export default function MovieDetail({
   movie,
-  allMovies,
   watchlistIds,
   onPlayClick,
   onToggleWatchlist,
   onMovieClick,
   onShowNotification,
 }: MovieDetailProps) {
+  const [relatedMovies, setRelatedMovies] = useState<Movie[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newCommentName, setNewCommentName] = useState("");
   const [newCommentContent, setNewCommentContent] = useState("");
@@ -47,14 +39,12 @@ export default function MovieDetail({
   const suppressCommentsRef = React.useRef(false);
   const pendingLikesRef = React.useRef<Set<string>>(new Set());
 
-  React.useEffect(() => {
-    const controller = new AbortController();
-    const signal = controller.signal;
+  useEffect(() => {
     let mounted = true;
 
     async function loadComments() {
       try {
-        const dbComments = await graphqlGetMovieComments(movie.id, signal);
+        const dbComments = await graphqlGetMovieComments(movie.id);
         if (!mounted) return;
 
         // Chuyển đổi dữ liệu từ Backend thành kiểu Comment của Frontend
@@ -100,21 +90,21 @@ export default function MovieDetail({
     }
     return () => {
       mounted = false;
-      controller.abort();
     };
   }, [movie.id]);
 
-  // Filter out the current movie and select movies with matching category for related list
-  const relatedMovies = allMovies.filter(
-    (m) => m.id !== movie.id && m.category === movie.category,
-  );
-
-  // If no exact category matches, fallback to generic movies list
-  const finalRelated =
-    relatedMovies.length > 0
-      ? relatedMovies
-      : allMovies.filter((m) => m.id !== movie.id).slice(0, 4);
-
+  // Find related movies
+  useEffect(() => {
+    const otherMovies = JSON.parse(localStorage.getItem("movies")).filter(
+      (m: Movie) => m.id !== movie.id,
+    );
+    // Use generic if can't find related
+    const sameCategory = otherMovies
+      .filter((m: Movie) => m.category === movie.category)
+      .slice(0, 4);
+    setRelatedMovies(sameCategory > 0 ? sameCategory : otherMovies.slice(0, 4));
+  }, [movie]);
+  
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCommentContent.trim()) {
@@ -482,7 +472,7 @@ export default function MovieDetail({
         <MovieRow
           title="Phim Tương Tự Điểm Cao"
           subtitle="Gợi ý phim lẻ cùng thể loại không nên bỏ lỡ"
-          movies={finalRelated}
+          movies={relatedMovies}
           watchlistIds={watchlistIds}
           onMovieClick={onMovieClick}
           onPlayClick={onPlayClick}
