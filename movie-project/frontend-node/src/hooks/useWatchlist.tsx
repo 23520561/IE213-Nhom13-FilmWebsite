@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Movie, User } from "../types";
 import {
   graphqlCreateWatchHistory,
-  graphqlToggleWatchlist,
+  // graphqlToggleWatchlist,
   graphqlUpdateWatchHistory,
 } from "../services/graphql";
 
@@ -70,47 +70,47 @@ const useWatchlist = function (
         return;
       }
       const currentlyIn = watchlistIds.includes(movieObj.id);
-      graphqlToggleWatchlist(uid, movieObj.id)
-        .then((res) => {
-          if (res && res.success) {
-            setWatchlistIds(res.watchlistIds || []);
-            const action = (res.watchlistIds || []).includes(movieObj.id)
-              ? "Thêm"
-              : "Loại bỏ";
-            showNotification(
-              `${action} "${movieObj.title}" vào Danh sách yêu thích.`,
-            );
-          } else {
-            // fallback to local
-            if (currentlyIn) {
-              setWatchlistIds((prev) =>
-                prev.filter((id) => id !== movieObj.id),
-              );
-              showNotification(
-                `Đã loại bỏ "${movieObj.title}" khỏi Danh sách yêu thích.`,
-              );
-            } else {
-              setWatchlistIds((prev) => [...prev, movieObj.id]);
-              showNotification(
-                `Đã thêm "${movieObj.title}" vào Danh sách yêu thích thành công!`,
-              );
-            }
-          }
-        })
-        .catch(() => {
-          // network or server error -> fallback to local behavior
-          if (currentlyIn) {
-            setWatchlistIds((prev) => prev.filter((id) => id !== movieObj.id));
-            showNotification(
-              `Đã loại bỏ "${movieObj.title}" khỏi Danh sách yêu thích.`,
-            );
-          } else {
-            setWatchlistIds((prev) => [...prev, movieObj.id]);
-            showNotification(
-              `Đã thêm "${movieObj.title}" vào Danh sách yêu thích thành công!`,
-            );
-          }
-        });
+      // graphqlToggleWatchlist(uid, movieObj.id)
+      //   .then((res) => {
+      //     if (res && res.success) {
+      //       setWatchlistIds(res.watchlistIds || []);
+      //       const action = (res.watchlistIds || []).includes(movieObj.id)
+      //         ? "Thêm"
+      //         : "Loại bỏ";
+      //       showNotification(
+      //         `${action} "${movieObj.title}" vào Danh sách yêu thích.`,
+      //       );
+      //     } else {
+      //       // fallback to local
+      //       if (currentlyIn) {
+      //         setWatchlistIds((prev) =>
+      //           prev.filter((id) => id !== movieObj.id),
+      //         );
+      //         showNotification(
+      //           `Đã loại bỏ "${movieObj.title}" khỏi Danh sách yêu thích.`,
+      //         );
+      //       } else {
+      //         setWatchlistIds((prev) => [...prev, movieObj.id]);
+      //         showNotification(
+      //           `Đã thêm "${movieObj.title}" vào Danh sách yêu thích thành công!`,
+      //         );
+      //       }
+      //     }
+      //   })
+      //   .catch(() => {
+      //     // network or server error -> fallback to local behavior
+      //     if (currentlyIn) {
+      //       setWatchlistIds((prev) => prev.filter((id) => id !== movieObj.id));
+      //       showNotification(
+      //         `Đã loại bỏ "${movieObj.title}" khỏi Danh sách yêu thích.`,
+      //       );
+      //     } else {
+      //       setWatchlistIds((prev) => [...prev, movieObj.id]);
+      //       showNotification(
+      //         `Đã thêm "${movieObj.title}" vào Danh sách yêu thích thành công!`,
+      //       );
+      //     }
+      //   });
       return;
     }
 

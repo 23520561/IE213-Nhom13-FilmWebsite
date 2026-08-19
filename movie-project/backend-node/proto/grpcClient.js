@@ -1,6 +1,7 @@
 import { getCache, setCache } from "../utils/cache.js";
 
 const BASE_URL = process.env.RECOMMENDATION_URL || "http://localhost:8000";
+console.log(BASE_URL)
 
 export const getSimilarMovies = (movieId, maxResults) => {
   return new Promise(async (resolve, reject) => {

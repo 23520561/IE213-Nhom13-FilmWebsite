@@ -7,8 +7,8 @@
     "test": "NODE_ENV=test jest --detectOpenHandles --forceExit",
     "test:watch": "NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:coverage": "NODE_ENV=test jest --coverage",
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node --env-file=.env index.js",
+    "dev": "node --env-file=.env index.js"
   },
   "keywords": [],
   "author": "",
